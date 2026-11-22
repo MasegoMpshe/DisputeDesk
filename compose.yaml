@@ -28,8 +28,8 @@ services:
       Database__Migrate: "true"
       Database__SeedDemoData: "true"
       Database__ProvisionDemoAccounts: "true"
-      DemoAccounts__demo-naledi__Password: "${DEMO_NALEDI_PASSWORD:?Set DEMO_NALEDI_PASSWORD in .env}"
-      DemoAccounts__demo-thabo__Password: "${DEMO_THABO_PASSWORD:?Set DEMO_THABO_PASSWORD in .env}"
+      DEMO_NALEDI_PASSWORD: "${DEMO_NALEDI_PASSWORD:?Set DEMO_NALEDI_PASSWORD in .env}"
+      DEMO_THABO_PASSWORD: "${DEMO_THABO_PASSWORD:?Set DEMO_THABO_PASSWORD in .env}"
       HTTPS_CERT_PASSWORD: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
     volumes:
       - https-certificate:/https
@@ -41,7 +41,10 @@ services:
         fi
         chown "$$APP_UID" /https/disputedesk.pfx
         chmod 600 /https/disputedesk.pfx
-        exec dotnet DisputeDesk.Api.dll
+        exec env \
+          "DemoAccounts__demo-naledi__Password=$$DEMO_NALEDI_PASSWORD" \
+          "DemoAccounts__demo-thabo__Password=$$DEMO_THABO_PASSWORD" \
+          dotnet DisputeDesk.Api.dll
 
   app:
     build:
