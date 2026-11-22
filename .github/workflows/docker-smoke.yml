@@ -23,7 +23,9 @@ jobs:
         run: |
           set -euo pipefail
           base_url=https://localhost:8443
-          curl -kfsS --retry 20 --retry-connrefused --retry-delay 2 "$base_url/dashboard" | grep '<app-root>'
+          # Docker can publish the port before Kestrel is ready to negotiate TLS.
+          dashboard="$(curl -kfsS --retry 20 --retry-all-errors --retry-delay 2 --max-time 5 "$base_url/dashboard")"
+          grep '<app-root>' <<< "$dashboard"
           test "$(curl -ksS -o /dev/null -w '%{http_code}' "$base_url/api/unknown")" = 404
           source .env
           export DEMO_NALEDI_PASSWORD
