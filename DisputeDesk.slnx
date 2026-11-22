@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/DisputeDesk.Application/">
+    <Project Path="DisputeDesk.Application/DisputeDesk.Application.csproj" />
+  </Folder>
+  <Folder Name="/DisputeDesk.Domain/">
+    <Project Path="DisputeDesk.Domain/DisputeDesk.Domain.csproj" />
+  </Folder>
+  <Folder Name="/DisputeDesk.Infrastructure/">
+    <Project Path="DisputeDesk.Infrastructure/DisputeDesk.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/DisputeDesk.Tests/">
+    <Project Path="DisputeDesk.Tests/DisputeDesk.Tests.csproj" />
+  </Folder>
+  <Project Path="DisputeDesk.Api/DisputeDesk.Api.csproj" />
+</Solution>

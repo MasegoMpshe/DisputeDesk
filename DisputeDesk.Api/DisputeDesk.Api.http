@@ -1,0 +1,35 @@
+@DisputeDesk.Api_HostAddress = https://localhost:7051
+
+# Use a fresh HTTP client session for this anonymous check.
+GET {{DisputeDesk.Api_HostAddress}}/api/transactions
+Accept: application/json
+
+###
+
+# Supply the local demo password in a private client environment.
+POST {{DisputeDesk.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "userName": "demo-naledi",
+  "password": "{{DemoNalediPassword}}"
+}
+
+###
+
+# Keep the session cookie from login.
+GET {{DisputeDesk.Api_HostAddress}}/api/transactions
+Accept: application/json
+
+###
+
+# A Thabo transaction should return 404 in Naledi's session.
+GET {{DisputeDesk.Api_HostAddress}}/api/transactions/20000000-0000-4000-8000-000000000003
+Accept: application/json
+
+###
+
+POST {{DisputeDesk.Api_HostAddress}}/api/auth/logout
+Content-Type: application/json
+
+{}

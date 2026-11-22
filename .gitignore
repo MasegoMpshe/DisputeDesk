@@ -1,0 +1,22 @@
+# Visual Studio and local IDE state
+.vs/
+*.user
+*.suo
+*.rsuser
+
+# .NET build and test output
+[Bb]in/
+[Oo]bj/
+[Tt]est[Rr]esults/
+artifacts/
+
+# Local secrets and private HTTP client environments
+.env
+.env.*
+!.env.example
+secrets.json
+appsettings.Local.json
+http-client.env.json
+http-client.private.env.json
+*.pfx
+*.p12
