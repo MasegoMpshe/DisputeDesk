@@ -1,3 +1,5 @@
+using DisputeDesk.Application.Dashboard;
+using DisputeDesk.Application.Disputes;
 using DisputeDesk.Api;
 using DisputeDesk.Application.Transactions;
 using DisputeDesk.Infrastructure;
@@ -36,6 +38,11 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<ProvisionDemoAccounts>();
 builder.Services.AddScoped<ITransactionReader, TransactionReader>();
+builder.Services.AddScoped<ICustomerDashboardReader, CustomerDashboardReader>();
+builder.Services.AddScoped<IDisputeReader, DisputeReader>();
+builder.Services.AddScoped<IDisputeWriter, DisputeWriter>();
+builder.Services.Configure<DemoTransactionOptions>(builder.Configuration.GetSection(DemoTransactionOptions.SectionName));
+builder.Services.AddScoped<IDemoTransactionGenerator, DemoTransactionGenerator>();
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -53,12 +60,18 @@ if (app.Configuration.GetValue<bool>("Database:ProvisionDemoAccounts"))
     return;
 }
 
+app.UseHttpsRedirection();
+
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.UseSwaggerUI(options =>
+    {
+        options.SwaggerEndpoint("/openapi/v1.json", "DisputeDesk API v1");
+        options.DocumentTitle = "DisputeDesk API";
+    });
 }
 
-app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

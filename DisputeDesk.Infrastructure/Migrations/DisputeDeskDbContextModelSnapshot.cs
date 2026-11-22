@@ -63,6 +63,11 @@ namespace DisputeDesk.Infrastructure.Migrations
                         .HasColumnType("text")
                         .HasColumnName("reason");
 
+                    b.Property<string>("ReasonCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("reason_code");
+
                     b.Property<string>("ReferenceNumber")
                         .IsRequired()
                         .HasColumnType("text")
@@ -83,6 +88,8 @@ namespace DisputeDesk.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("ReasonCode");
+
                     b.HasIndex("ReferenceNumber")
                         .IsUnique();
 
@@ -90,6 +97,86 @@ namespace DisputeDesk.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("disputes", (string)null);
+                });
+
+            modelBuilder.Entity("DisputeDesk.Domain.DisputeReason", b =>
+                {
+                    b.Property<string>("Code")
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("code");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_active");
+
+                    b.Property<string>("Label")
+                        .IsRequired()
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("label");
+
+                    b.Property<bool>("RequiresDetails")
+                        .HasColumnType("boolean")
+                        .HasColumnName("requires_details");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.HasKey("Code");
+
+                    b.ToTable("dispute_reasons", (string)null);
+
+                    b.HasData(
+                        new
+                        {
+                            Code = "UNRECOGNISED",
+                            IsActive = true,
+                            Label = "I don’t recognise this transaction",
+                            RequiresDetails = false,
+                            SortOrder = 10
+                        },
+                        new
+                        {
+                            Code = "DUPLICATE",
+                            IsActive = true,
+                            Label = "I was charged more than once",
+                            RequiresDetails = false,
+                            SortOrder = 20
+                        },
+                        new
+                        {
+                            Code = "INCORRECT_AMOUNT",
+                            IsActive = true,
+                            Label = "I was charged the wrong amount",
+                            RequiresDetails = false,
+                            SortOrder = 30
+                        },
+                        new
+                        {
+                            Code = "REFUND_MISSING",
+                            IsActive = true,
+                            Label = "I didn’t receive my refund",
+                            RequiresDetails = false,
+                            SortOrder = 40
+                        },
+                        new
+                        {
+                            Code = "NOT_RECEIVED",
+                            IsActive = true,
+                            Label = "I didn’t receive the goods or services",
+                            RequiresDetails = false,
+                            SortOrder = 50
+                        },
+                        new
+                        {
+                            Code = "OTHER",
+                            IsActive = true,
+                            Label = "Other",
+                            RequiresDetails = true,
+                            SortOrder = 60
+                        });
                 });
 
             modelBuilder.Entity("DisputeDesk.Domain.Transaction", b =>
@@ -103,6 +190,11 @@ namespace DisputeDesk.Infrastructure.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("numeric(18,2)")
                         .HasColumnName("amount");
+
+                    b.Property<string>("City")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("city");
 
                     b.Property<string>("Currency")
                         .IsRequired()
@@ -118,6 +210,11 @@ namespace DisputeDesk.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text")
                         .HasColumnName("description");
+
+                    b.Property<string>("Merchant")
+                        .HasMaxLength(120)
+                        .HasColumnType("character varying(120)")
+                        .HasColumnName("merchant");
 
                     b.Property<DateTimeOffset>("OccurredAt")
                         .HasColumnType("timestamp with time zone")
@@ -262,6 +359,11 @@ namespace DisputeDesk.Infrastructure.Migrations
 
             modelBuilder.Entity("DisputeDesk.Domain.Dispute", b =>
                 {
+                    b.HasOne("DisputeDesk.Domain.DisputeReason", null)
+                        .WithMany()
+                        .HasForeignKey("ReasonCode")
+                        .OnDelete(DeleteBehavior.Restrict);
+
                     b.HasOne("DisputeDesk.Domain.Transaction", null)
                         .WithOne()
                         .HasForeignKey("DisputeDesk.Domain.Dispute", "TransactionId")

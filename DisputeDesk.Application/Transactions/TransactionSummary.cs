@@ -5,4 +5,6 @@ public sealed record TransactionSummary(
     string Description,
     decimal Amount,
     string Currency,
-    DateTimeOffset OccurredAt);
+    DateTimeOffset OccurredAt,
+    string? Merchant = null,
+    string? City = null);

@@ -1,0 +1,24 @@
+<a routerLink="/dashboard">Back to dashboard</a>
+<div class="page-heading">
+  <h1>Transactions</h1>
+  @if (transactions()) {
+    <app-sign-out />
+  }
+</div>
+
+<section class="panel" aria-label="Your transactions">
+  @if (loadError()) {
+    <div class="state">
+      <p class="error" role="alert">We couldn’t load your transactions.</p>
+      <button type="button" (click)="load()">Try again</button>
+    </div>
+  } @else if (transactions(); as items) {
+    @if (items.length) {
+      <app-transaction-rows [transactions]="items" />
+    } @else {
+      <p class="state">You have no transactions to display.</p>
+    }
+  } @else {
+    <p class="state" role="status">Loading transactions…</p>
+  }
+</section>

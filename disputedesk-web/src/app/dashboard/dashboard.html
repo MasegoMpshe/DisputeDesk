@@ -1,0 +1,63 @@
+<div class="page-heading">
+  <h1>Dashboard</h1>
+  @if (summary()) {
+    <app-sign-out />
+  }
+</div>
+
+@if (summary(); as summary) {
+  <div class="totals">
+    <section class="panel total-card" aria-labelledby="transaction-total">
+      <span class="card-icon transaction-icon" aria-hidden="true"><span></span></span>
+      <h2 id="transaction-total">Total Transaction Count</h2>
+      <p>{{ summary.totalTransactionCount }}</p>
+    </section>
+    <section class="panel total-card" aria-labelledby="dispute-total">
+      <span class="card-icon dispute-icon" aria-hidden="true"><span>!</span></span>
+      <h2 id="dispute-total">Total Disputes</h2>
+      <p>{{ summary.totalDisputes }}</p>
+      <a routerLink="/disputes">View all disputes</a>
+    </section>
+  </div>
+
+  <section class="recent" aria-labelledby="recent-title">
+    <div class="section-heading">
+      <h2 id="recent-title">Recent transactions</h2>
+      <a routerLink="/transactions">View all transactions</a>
+    </div>
+    @if (summary.canGenerateTransactions) {
+      <div class="demo-actions">
+        <button
+          type="button"
+          class="secondary"
+          (click)="generateTransactions()"
+          [disabled]="generating()"
+        >
+          {{ generating() ? 'Generating…' : 'Generate demo transactions' }}
+        </button>
+        @if (generatedCount()) {
+          <span role="status">{{ generatedCount() }} demo transactions added.</span>
+        }
+      </div>
+      @if (generationError()) {
+        <p class="error" role="alert">We couldn’t generate demo transactions. Try again.</p>
+      }
+      @if (loadError()) {
+        <p class="error" role="alert">The dashboard could not refresh.</p>
+        <button type="button" (click)="load()">Refresh dashboard</button>
+      }
+    }
+    <div class="panel">
+      @if (summary.recentTransactions.length) {
+        <app-transaction-rows [transactions]="summary.recentTransactions" />
+      } @else {
+        <p class="state">You have no transactions to display.</p>
+      }
+    </div>
+  </section>
+} @else if (loadError()) {
+  <p class="error" role="alert">We couldn’t load your dashboard.</p>
+  <button type="button" (click)="load()">Try again</button>
+} @else {
+  <p role="status">Loading dashboard…</p>
+}

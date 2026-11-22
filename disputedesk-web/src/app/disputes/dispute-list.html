@@ -1,0 +1,34 @@
+<a routerLink="/dashboard">Back to dashboard</a>
+<div class="page-heading">
+  <h1>Disputes</h1>
+  @if (disputes()) {
+    <app-sign-out />
+  }
+</div>
+<section class="panel" aria-label="Your disputes">
+  @if (loadError()) {
+    <div class="state">
+      <p class="error" role="alert">We couldn’t load your disputes.</p>
+      <button type="button" (click)="load()">Try again</button>
+    </div>
+  } @else if (disputes(); as items) {
+    @if (items.length) {
+      <ul>
+        @for (dispute of items; track dispute.id) {
+          <li>
+            <a [routerLink]="['/disputes', dispute.id]">{{ dispute.transactionDescription }}</a>
+            <span class="muted reference-number">{{ dispute.referenceNumber }}</span>
+            <span class="status-label">{{ dispute.status }}</span>
+            <time class="muted" [attr.datetime]="dispute.submittedAt">{{
+              dispute.submittedAt | date: 'mediumDate'
+            }}</time>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="state">You have no disputes yet.</p>
+    }
+  } @else {
+    <p class="state" role="status">Loading disputes…</p>
+  }
+</section>
