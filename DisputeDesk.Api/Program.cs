@@ -48,19 +48,33 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-if (app.Configuration.GetValue<bool>("Database:ProvisionDemoAccounts"))
+var migrateDatabase = app.Configuration.GetValue<bool>("Database:Migrate");
+var provisionDemoAccounts = app.Configuration.GetValue<bool>("Database:ProvisionDemoAccounts");
+
+if (migrateDatabase || provisionDemoAccounts)
 {
     await using (app)
     {
         await using var scope = app.Services.CreateAsyncScope();
-        var command = scope.ServiceProvider.GetRequiredService<ProvisionDemoAccounts>();
-        await command.ExecuteAsync();
+        if (migrateDatabase)
+        {
+            var database = scope.ServiceProvider.GetRequiredService<DisputeDeskDbContext>();
+            await database.Database.MigrateAsync();
+        }
+
+        if (provisionDemoAccounts)
+        {
+            var command = scope.ServiceProvider.GetRequiredService<ProvisionDemoAccounts>();
+            await command.ExecuteAsync();
+        }
     }
 
     return;
 }
 
 app.UseHttpsRedirection();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 if (app.Environment.IsDevelopment())
 {
@@ -75,6 +89,8 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapFallback("/api/{**path}", () => Results.NotFound());
+app.MapFallbackToFile("index.html");
 
 app.Run();
 

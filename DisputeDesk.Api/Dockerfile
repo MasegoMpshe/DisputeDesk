@@ -1,30 +1,35 @@
-# See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
-
-# This stage is used when running from VS in fast mode (Default for Debug configuration)
+# syntax=docker/dockerfile:1
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+WORKDIR /app
+EXPOSE 8080 8081 8443
 USER $APP_UID
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 8081
 
+FROM node:24-bookworm-slim AS frontend
+WORKDIR /web
+COPY disputedesk-web/package.json disputedesk-web/package-lock.json ./
+RUN npm ci
+COPY disputedesk-web/ ./
+RUN npm run build
 
-# This stage is used to build the service project
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
-ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["DisputeDesk.Api/DisputeDesk.Api.csproj", "DisputeDesk.Api/"]
-RUN dotnet restore "./DisputeDesk.Api/DisputeDesk.Api.csproj"
-COPY . .
-WORKDIR "/src/DisputeDesk.Api"
-RUN dotnet build "./DisputeDesk.Api.csproj" -c $BUILD_CONFIGURATION -o /app/build
+COPY DisputeDesk.Api/DisputeDesk.Api.csproj DisputeDesk.Api/
+COPY DisputeDesk.Application/DisputeDesk.Application.csproj DisputeDesk.Application/
+COPY DisputeDesk.Domain/DisputeDesk.Domain.csproj DisputeDesk.Domain/
+COPY DisputeDesk.Infrastructure/DisputeDesk.Infrastructure.csproj DisputeDesk.Infrastructure/
+RUN dotnet restore DisputeDesk.Api/DisputeDesk.Api.csproj
+COPY DisputeDesk.Api/ DisputeDesk.Api/
+COPY DisputeDesk.Application/ DisputeDesk.Application/
+COPY DisputeDesk.Domain/ DisputeDesk.Domain/
+COPY DisputeDesk.Infrastructure/ DisputeDesk.Infrastructure/
+RUN dotnet publish DisputeDesk.Api/DisputeDesk.Api.csproj -c Release --no-restore -o /app /p:UseAppHost=false
 
-# This stage is used to publish the service project to be copied to the final stage
-FROM build AS publish
-ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./DisputeDesk.Api.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
-
-# This stage is used in production or when running from VS in regular mode (Default when not using the Debug configuration)
-FROM base AS final
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS setup
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/ ./
+ENTRYPOINT ["dotnet", "DisputeDesk.Api.dll"]
+
+FROM base AS final
+COPY --from=build /app/ ./
+COPY --from=frontend /web/dist/disputedesk-web/browser/ ./wwwroot/
 ENTRYPOINT ["dotnet", "DisputeDesk.Api.dll"]
