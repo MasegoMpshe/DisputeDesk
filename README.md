@@ -108,7 +108,7 @@ npm.cmd run build
 npm.cmd test -- --watch=false
 ```
 
-On macOS or Linux, use `npm` and slash-separated paths. The repository's Docker smoke workflow builds the Compose stack and checks the HTTPS frontend route, demo sign-in, transaction list, dispute submission, and dispute history.
+On macOS or Linux, use `npm` and slash-separated paths. GitHub Actions runs the .NET tests against a disposable PostgreSQL service and builds and tests Angular. A separate Docker job starts a fresh Compose stack and checks submission, reviewer approval, the customer timeline, notification read state after sign-in, and customer isolation.
 
 The PostgreSQL integration tests require `DISPUTEDESK_TEST_POSTGRES` to contain a connection string for a test PostgreSQL server and a role that can create databases. The tests create and remove a uniquely named database. With the variable set, run `dotnet test .\DisputeDesk.slnx --configuration Release` from the root. Without it, the PostgreSQL tests are reported as skipped.
 
