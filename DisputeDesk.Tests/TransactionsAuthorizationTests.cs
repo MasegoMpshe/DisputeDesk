@@ -258,7 +258,7 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
                 ? new CustomerDashboard(7, 1, [NalediTransaction])
                 : new CustomerDashboard(3, 0, [ThaboTransaction]));
 
-        public Task<DisputeSummary[]> ListAsync(string identityUserId, CancellationToken cancellationToken) =>
+        public Task<DisputeSummary[]> ListAsync(string identityUserId, DisputeFilter filter, CancellationToken cancellationToken) =>
             Task.FromResult<DisputeSummary[]>(identityUserId == "demo-naledi"
                 ? [NalediDispute]
                 : []);

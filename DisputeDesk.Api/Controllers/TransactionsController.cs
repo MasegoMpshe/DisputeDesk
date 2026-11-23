@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 namespace DisputeDesk.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = DisputeAccess.Customer)]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 [Route("api/transactions")]
 public sealed class TransactionsController(

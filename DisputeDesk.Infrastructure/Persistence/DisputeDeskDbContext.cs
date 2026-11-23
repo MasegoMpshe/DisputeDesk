@@ -6,12 +6,14 @@ using Microsoft.EntityFrameworkCore;
 namespace DisputeDesk.Infrastructure;
 
 public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> options)
-    : IdentityUserContext<IdentityUser>(options)
+    : IdentityDbContext<IdentityUser>(options)
 {
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
     public DbSet<DisputeReason> DisputeReasons => Set<DisputeReason>();
+    public DbSet<DisputeStatusChange> DisputeStatusHistory => Set<DisputeStatusChange>();
+    public DbSet<DisputeNotification> DisputeNotifications => Set<DisputeNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -69,11 +71,36 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
         disputes.Property(dispute => dispute.ReferenceNumber).HasColumnName("reference_number");
         disputes.Property(dispute => dispute.Reason).HasColumnName("reason");
         disputes.Property(dispute => dispute.Details).HasColumnName("details");
-        disputes.Property(dispute => dispute.Status).HasColumnName("status");
+        disputes.Property(dispute => dispute.Status).HasColumnName("status").HasConversion<string>().IsConcurrencyToken();
         disputes.Property(dispute => dispute.SubmittedAt).HasColumnName("submitted_at");
         disputes.HasIndex(dispute => dispute.ReferenceNumber).IsUnique();
         disputes.HasOne<Transaction>().WithOne()
             .HasForeignKey<Dispute>(dispute => dispute.TransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var history = modelBuilder.Entity<DisputeStatusChange>();
+        history.ToTable("dispute_status_history");
+        history.HasKey(change => change.Id);
+        history.Property(change => change.Id).HasColumnName("id");
+        history.Property(change => change.DisputeId).HasColumnName("dispute_id");
+        history.Property(change => change.Status).HasColumnName("status").HasConversion<string>();
+        history.Property(change => change.ActorId).HasColumnName("actor_id");
+        history.Property(change => change.Actor).HasColumnName("actor").HasConversion<string>();
+        history.Property(change => change.ChangedAt).HasColumnName("changed_at");
+        history.Property(change => change.Note).HasColumnName("note").HasMaxLength(2000);
+        history.HasIndex(change => new { change.DisputeId, change.Status }).IsUnique();
+        history.HasOne<Dispute>().WithMany().HasForeignKey(change => change.DisputeId).OnDelete(DeleteBehavior.Restrict);
+
+        var notifications = modelBuilder.Entity<DisputeNotification>();
+        notifications.ToTable("dispute_notifications");
+        notifications.HasKey(notification => notification.StatusChangeId);
+        notifications.Property(notification => notification.StatusChangeId).HasColumnName("status_change_id");
+        notifications.Property(notification => notification.CustomerId).HasColumnName("customer_id");
+        notifications.Property(notification => notification.ReadAt).HasColumnName("read_at");
+        notifications.HasOne<DisputeStatusChange>().WithOne()
+            .HasForeignKey<DisputeNotification>(notification => notification.StatusChangeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        notifications.HasOne<Customer>().WithMany().HasForeignKey(notification => notification.CustomerId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

@@ -23,8 +23,12 @@ internal static class CustomerQueries
 
     public static IQueryable<OwnedDispute> DisputesFor(
         this DisputeDeskDbContext context, string identityUserId) =>
+        context.DisputesForTransactions(context.TransactionsFor(identityUserId));
+
+    public static IQueryable<OwnedDispute> DisputesForTransactions(
+        this DisputeDeskDbContext context, IQueryable<Transaction> transactions) =>
         from dispute in context.Disputes.AsNoTracking()
-        join transaction in context.TransactionsFor(identityUserId) on dispute.TransactionId equals transaction.Id
+        join transaction in transactions on dispute.TransactionId equals transaction.Id
         select new OwnedDispute { Dispute = dispute, Transaction = transaction };
 
     internal sealed class OwnedDispute

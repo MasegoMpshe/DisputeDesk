@@ -30,6 +30,7 @@ services:
       Database__ProvisionDemoAccounts: "true"
       DEMO_NALEDI_PASSWORD: "${DEMO_NALEDI_PASSWORD:?Set DEMO_NALEDI_PASSWORD in .env}"
       DEMO_THABO_PASSWORD: "${DEMO_THABO_PASSWORD:?Set DEMO_THABO_PASSWORD in .env}"
+      DEMO_REVIEWER_PASSWORD: "${DEMO_REVIEWER_PASSWORD:-}"
       HTTPS_CERT_PASSWORD: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
     volumes:
       - https-certificate:/https
@@ -44,6 +45,7 @@ services:
         exec env \
           "DemoAccounts__demo-naledi__Password=$$DEMO_NALEDI_PASSWORD" \
           "DemoAccounts__demo-thabo__Password=$$DEMO_THABO_PASSWORD" \
+          "DemoAccounts__demo-reviewer__Password=$$DEMO_REVIEWER_PASSWORD" \
           dotnet DisputeDesk.Api.dll
 
   app:

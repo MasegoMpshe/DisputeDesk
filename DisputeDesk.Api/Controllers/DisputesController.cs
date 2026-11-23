@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
+using System.Text.Json;
+using DisputeDesk.Domain;
 using DisputeDesk.Application.Disputes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,21 +9,23 @@ using Microsoft.AspNetCore.Mvc;
 namespace DisputeDesk.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = DisputeAccess.Customer)]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 [Route("api/disputes")]
 public sealed class DisputesController(IDisputeReader disputes, IDisputeWriter writer) : ControllerBase
 {
     [HttpGet]
-    public async Task<ActionResult<DisputeSummary[]>> List(CancellationToken cancellationToken)
+    public async Task<ActionResult<DisputeSummary[]>> List(
+        [FromQuery] DisputeStatus? status, [FromQuery] DateTimeOffset? from, [FromQuery] DateTimeOffset? to,
+        CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
+        if (from > to)
         {
-            return Forbid();
+            return InvalidSubmission(nameof(from), "The start of the date range must be before or equal to its end.");
         }
 
-        return await disputes.ListAsync(userId, cancellationToken);
+        return await disputes.ListAsync(User.FindFirstValue(ClaimTypes.NameIdentifier)!,
+            new DisputeFilter(status, from, to), cancellationToken);
     }
 
     [HttpGet("reasons")]
@@ -72,6 +76,8 @@ public sealed class DisputesController(IDisputeReader disputes, IDisputeWriter w
             DisputeSubmissionResult.Created created =>
                 CreatedAtAction(nameof(Get), new { id = created.Dispute.Summary.Id }, created.Dispute),
             DisputeSubmissionResult.TransactionNotFound => NotFound(),
+            DisputeSubmissionResult.FilingWindowExpired =>
+                InvalidSubmission(nameof(request.TransactionId), "Disputes must be submitted within 120 days of the transaction."),
             DisputeSubmissionResult.InvalidReason =>
                 InvalidSubmission(nameof(request.ReasonCode), "Select an available dispute reason."),
             DisputeSubmissionResult.DetailsRequired =>
@@ -82,6 +88,23 @@ public sealed class DisputesController(IDisputeReader disputes, IDisputeWriter w
                 Title = "A dispute already exists for this transaction."
             }),
             _ => throw new InvalidOperationException("Unexpected dispute submission result.")
+        };
+    }
+
+    [HttpPost("{id:guid}/withdraw")]
+    [Consumes("application/json")]
+    public async Task<IActionResult> Withdraw(Guid id, [FromBody] JsonElement _, [FromServices] DisputeWorkflow workflow, CancellationToken cancellationToken)
+    {
+        var result = await workflow.WithdrawAsync(User.FindFirstValue(ClaimTypes.NameIdentifier)!, id, cancellationToken);
+        return result switch
+        {
+            DisputeTransitionResult.Updated => NoContent(),
+            DisputeTransitionResult.NotFound => NotFound(),
+            _ => Conflict(new ProblemDetails
+            {
+                Status = StatusCodes.Status409Conflict,
+                Title = "Only a submitted dispute can be withdrawn."
+            })
         };
     }
 

@@ -12,6 +12,11 @@ namespace DisputeDesk.Api.Controllers;
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 public sealed class AuthController(SignInManager<IdentityUser> signInManager) : ControllerBase
 {
+    [Authorize]
+    [HttpGet("session")]
+    public IActionResult Session() =>
+        Ok(new { role = User.IsInRole(DisputeAccess.Reviewer) ? DisputeAccess.Reviewer : DisputeAccess.Customer });
+
     [HttpPost("login")]
     [Consumes("application/json")]
     public async Task<IActionResult> Login(LoginRequest request)
