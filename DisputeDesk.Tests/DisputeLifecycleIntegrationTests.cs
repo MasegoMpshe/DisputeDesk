@@ -1,10 +1,12 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DisputeDesk.Api;
 using DisputeDesk.Application.Dashboard;
 using DisputeDesk.Application.Disputes;
 using DisputeDesk.Application.Transactions;
 using DisputeDesk.Domain;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -18,6 +20,60 @@ namespace DisputeDesk.Tests;
 public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fixture)
     : IClassFixture<PostgreSqlDisputeFixture>
 {
+    [PostgreSqlFact]
+    public async Task SetupRecoversAnExistingLockedDemoReviewerUsingTheConfiguredPassword()
+    {
+        const string reviewerId = "demo-reviewer";
+        const string oldPassword = "Old-Demo1!";
+        const string configuredPassword = "Configured-Demo2!";
+        using var setupApp = fixture.App.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, configuration) => configuration.AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["DemoAccounts:demo-naledi:Password"] = configuredPassword,
+                    ["DemoAccounts:demo-thabo:Password"] = configuredPassword,
+                    ["DemoAccounts:demo-reviewer:Password"] = configuredPassword
+                })));
+
+        await using (var scope = setupApp.Services.CreateAsyncScope())
+        {
+            var database = scope.ServiceProvider.GetRequiredService<DisputeDeskDbContext>();
+            database.Customers.AddRange(
+                new Customer { Id = Guid.NewGuid(), IdentityUserId = "demo-naledi", DisplayName = "Naledi" },
+                new Customer { Id = Guid.NewGuid(), IdentityUserId = "demo-thabo", DisplayName = "Thabo" });
+            await database.SaveChangesAsync();
+
+            var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
+            var reviewer = new IdentityUser { Id = reviewerId, UserName = reviewerId, LockoutEnabled = true };
+            Assert.True((await users.CreateAsync(reviewer, oldPassword)).Succeeded);
+            Assert.True((await users.AccessFailedAsync(reviewer)).Succeeded);
+            Assert.True((await users.SetLockoutEndDateAsync(reviewer, DateTimeOffset.UtcNow.AddMinutes(5))).Succeeded);
+            var existingCustomer = new IdentityUser { Id = "demo-naledi", UserName = "demo-naledi" };
+            Assert.True((await users.CreateAsync(existingCustomer, oldPassword)).Succeeded);
+
+            var setup = scope.ServiceProvider.GetRequiredService<ProvisionDemoAccounts>();
+            await setup.ExecuteAsync();
+            var stamp = await users.GetSecurityStampAsync(reviewer);
+            await setup.ExecuteAsync();
+
+            Assert.False(await users.IsLockedOutAsync(reviewer));
+            Assert.Equal(0, await users.GetAccessFailedCountAsync(reviewer));
+            Assert.Equal(stamp, await users.GetSecurityStampAsync(reviewer));
+            Assert.True(await users.CheckPasswordAsync(existingCustomer, oldPassword));
+        }
+
+        using var client = setupApp.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        using var oldLogin = await client.PostAsJsonAsync("/api/auth/login", new { userName = reviewerId, password = oldPassword });
+        Assert.Equal(HttpStatusCode.Unauthorized, oldLogin.StatusCode);
+        using var login = await client.PostAsJsonAsync("/api/auth/login", new { userName = reviewerId, password = configuredPassword });
+        Assert.Equal(HttpStatusCode.NoContent, login.StatusCode);
+        using var queue = await client.GetAsync("/api/reviewer/disputes");
+        Assert.Equal(HttpStatusCode.OK, queue.StatusCode);
+    }
+
     [PostgreSqlFact]
     public async Task ReadinessSucceedsWithMigratedPostgreSql()
     {

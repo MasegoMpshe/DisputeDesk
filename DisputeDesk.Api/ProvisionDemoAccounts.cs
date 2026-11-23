@@ -44,7 +44,16 @@ internal sealed class ProvisionDemoAccounts(
                 EnsureSuccess(await roles.CreateAsync(new IdentityRole(DisputeAccess.Reviewer)), "create the reviewer role");
             }
 
-            var reviewer = await users.FindByIdAsync(reviewerId) ?? await CreateUserAsync(reviewerId, reviewerPassword);
+            var reviewer = await users.FindByIdAsync(reviewerId);
+            if (reviewer is null)
+            {
+                reviewer = await CreateUserAsync(reviewerId, reviewerPassword);
+            }
+            else
+            {
+                await SyncReviewerCredentialsAsync(reviewer, reviewerPassword);
+            }
+
             if (!await users.IsInRoleAsync(reviewer, DisputeAccess.Reviewer))
             {
                 EnsureSuccess(await users.AddToRoleAsync(reviewer, DisputeAccess.Reviewer), "assign the reviewer role");
@@ -52,6 +61,25 @@ internal sealed class ProvisionDemoAccounts(
         }
 
         await transaction.CommitAsync();
+    }
+
+    private async Task SyncReviewerCredentialsAsync(IdentityUser reviewer, string password)
+    {
+        if (!await users.CheckPasswordAsync(reviewer, password))
+        {
+            var token = await users.GeneratePasswordResetTokenAsync(reviewer);
+            EnsureSuccess(await users.ResetPasswordAsync(reviewer, token, password), "update the demo reviewer password");
+        }
+
+        if (await users.IsLockedOutAsync(reviewer))
+        {
+            EnsureSuccess(await users.SetLockoutEndDateAsync(reviewer, null), "unlock the demo reviewer");
+        }
+
+        if (await users.GetAccessFailedCountAsync(reviewer) > 0)
+        {
+            EnsureSuccess(await users.ResetAccessFailedCountAsync(reviewer), "clear failed demo reviewer sign-ins");
+        }
     }
 
     private async Task<IdentityUser> CreateUserAsync(string id, string password)
