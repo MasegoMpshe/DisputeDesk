@@ -1,11 +1,16 @@
 <header class="app-header">
   <div class="header-inner">
     <span class="brand">DisputeDesk</span>
-    <div class="assessment" aria-label="Capitec assessment demo">
-      <span class="assessment-logo">
-        <img src="capitec-logo-reference.jpg" width="1080" height="2340" alt="" />
-      </span>
-      <span>Capitec assessment demo</span>
+    <div class="header-tools">
+      <div class="assessment" aria-label="Capitec assessment demo">
+        <span class="assessment-logo">
+          <img src="capitec-logo-reference.jpg" width="1080" height="2340" alt="" />
+        </span>
+        <span>Capitec assessment demo</span>
+      </div>
+      @if (role() === 'Customer') {
+        <app-notification-bell />
+      }
     </div>
   </div>
 </header>

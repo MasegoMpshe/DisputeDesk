@@ -1,0 +1,19 @@
+<section aria-labelledby="timeline-heading">
+  <h2 id="timeline-heading">Dispute timeline</h2>
+  <ol>
+    @for (entry of entries(); track entry.status) {
+      <li>
+        <strong>{{ entry.status }}</strong>
+        <div class="muted">
+          {{ entry.actor }} ·
+          <time [attr.datetime]="entry.changedAt">{{ entry.changedAt | date: 'medium' }}</time>
+        </div>
+        @if (entry.note) {
+          <p>{{ entry.note }}</p>
+        }
+      </li>
+    } @empty {
+      <li>No status updates recorded yet.</li>
+    }
+  </ol>
+</section>

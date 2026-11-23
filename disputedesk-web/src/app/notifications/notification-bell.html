@@ -1,0 +1,57 @@
+<button
+  #trigger
+  type="button"
+  class="bell-button"
+  [attr.aria-label]="'Notifications, ' + unread() + ' unread'"
+  [attr.aria-expanded]="expanded()"
+  [attr.aria-controls]="expanded() ? 'dispute-notifications' : null"
+  (click)="toggle()"
+>
+  <span class="bell-icon" aria-hidden="true"></span>
+  @if (unread()) {
+    <span class="badge" aria-hidden="true">{{ unread() > 99 ? '99+' : unread() }}</span>
+  }
+</button>
+@if (expanded()) {
+  <section class="panel notifications-panel" id="dispute-notifications" aria-label="Notifications">
+    <h2>Notifications</h2>
+    @if (openFailed()) {
+      <p class="message error" role="alert">We couldn’t open that update. Try again.</p>
+    }
+    @if (loadFailed()) {
+      <div class="message">
+        <p class="error" role="alert">We couldn’t load your notifications.</p>
+        <button class="secondary" type="button" (click)="reload()">Try again</button>
+      </div>
+    } @else if (loading() && !notifications().length) {
+      <p class="message" role="status">Loading notifications…</p>
+    } @else if (notifications().length) {
+      <ul>
+        @for (item of notifications(); track item.id) {
+          <li>
+            <button
+              type="button"
+              class="notification"
+              [class.unread]="!item.readAt"
+              [disabled]="opening()"
+              (click)="open(item)"
+            >
+              <span class="notification-heading">
+                {{ item.status }}
+                @if (!item.readAt) {
+                  <span class="unread-label">Unread</span>
+                }
+              </span>
+              <span class="reference">{{ item.referenceNumber }}</span>
+              <time class="muted" [attr.datetime]="item.changedAt">{{
+                item.changedAt | date: 'medium'
+              }}</time>
+            </button>
+          </li>
+        }
+      </ul>
+    } @else {
+      <p class="message">You have no notifications yet.</p>
+    }
+  </section>
+}

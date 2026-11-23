@@ -23,6 +23,10 @@ export class Login {
   protected readonly submitting = signal(false);
   protected readonly error = signal('');
 
+  constructor() {
+    this.auth.clearSession();
+  }
+
   protected submit() {
     if (this.form.invalid || this.submitting()) return;
 

@@ -1,0 +1,44 @@
+section {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  color: var(--accent);
+  font-size: 1.25rem;
+}
+
+ol {
+  margin: 0 0 0 0.35rem;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  position: relative;
+  padding: 0 0 1rem 1.15rem;
+  border-inline-start: 2px solid var(--border);
+}
+
+li:last-child {
+  padding-bottom: 0;
+  border-inline-start-color: transparent;
+}
+
+li::before {
+  position: absolute;
+  inset: 0.45rem auto auto -0.35rem;
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  background: var(--accent);
+  content: '';
+}
+
+li p {
+  margin: 0.3rem 0 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}

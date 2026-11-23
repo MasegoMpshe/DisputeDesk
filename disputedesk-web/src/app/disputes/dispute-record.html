@@ -1,0 +1,33 @@
+@let item = dispute();
+<dl>
+  <dt>Reference number</dt>
+  <dd class="reference">{{ item.summary.referenceNumber }}</dd>
+  <dt>Status</dt>
+  <dd>
+    <span class="status-label">{{ item.summary.status }}</span>
+  </dd>
+  <dt>Transaction</dt>
+  <dd>
+    @if (linkToTransaction()) {
+      <a [routerLink]="['/transactions', item.summary.transactionId]">{{
+        item.summary.transactionDescription
+      }}</a>
+    } @else {
+      {{ item.summary.transactionDescription }}
+    }
+  </dd>
+  <dt>Amount</dt>
+  <dd>{{ item.summary.amount | currency: item.summary.currency }}</dd>
+  <dt>Submitted</dt>
+  <dd>
+    <time [attr.datetime]="item.summary.submittedAt">{{
+      item.summary.submittedAt | date: 'medium'
+    }}</time>
+  </dd>
+  <dt>Reason</dt>
+  <dd>{{ item.reason }}</dd>
+  @if (item.details) {
+    <dt>Details</dt>
+    <dd class="details">{{ item.details }}</dd>
+  }
+</dl>

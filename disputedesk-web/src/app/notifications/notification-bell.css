@@ -1,0 +1,137 @@
+:host {
+  position: relative;
+  display: block;
+}
+
+.bell-button {
+  position: relative;
+  width: 2.75rem;
+  padding: 0;
+  background: var(--surface);
+  color: var(--accent);
+}
+
+.bell-button:hover:not(:disabled) {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+.bell-icon {
+  position: relative;
+  width: 0.85rem;
+  height: 0.9rem;
+  border: 2px solid currentColor;
+  border-bottom: 0;
+  border-radius: 0.6rem 0.6rem 0.15rem 0.15rem;
+  margin-top: -0.2rem;
+}
+
+.bell-icon::before,
+.bell-icon::after {
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  background: currentColor;
+  content: '';
+}
+
+.bell-icon::before {
+  bottom: 0;
+  width: 1.05rem;
+  height: 2px;
+  border-radius: 2px;
+}
+
+.bell-icon::after {
+  bottom: -0.22rem;
+  width: 0.3rem;
+  height: 0.13rem;
+  border-radius: 0 0 0.2rem 0.2rem;
+}
+
+.badge {
+  position: absolute;
+  inset: -0.35rem -0.4rem auto auto;
+  min-width: 1.1rem;
+  padding-inline: 0.2rem;
+  border-radius: 1rem;
+  background: var(--error);
+  color: white;
+  font-size: 0.7rem;
+}
+
+.notifications-panel {
+  position: absolute;
+  z-index: 5;
+  top: calc(100% + 0.75rem);
+  inset-inline-end: 0;
+  width: min(23rem, calc(100vw - 2rem));
+}
+
+h2,
+.message {
+  margin: 0;
+  padding: 0.85rem 1rem;
+}
+
+h2 {
+  font-size: 1.125rem;
+}
+
+ul {
+  max-height: min(25rem, 60vh);
+  margin: 0;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+  border-radius: 0 0 0.9rem 0.9rem;
+}
+
+li {
+  border-top: 1px solid var(--border);
+}
+
+.notification {
+  display: grid;
+  width: 100%;
+  gap: 0.2rem;
+  justify-content: stretch;
+  padding: 0.7rem 1rem;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  text-align: start;
+}
+
+.notification.unread,
+.notification:hover:not(:disabled) {
+  background: var(--accent-light);
+  color: var(--ink);
+}
+
+.notification:focus-visible {
+  outline-offset: -3px;
+}
+
+.notification-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  color: var(--accent);
+}
+
+.unread-label,
+.reference,
+time {
+  font-size: 0.8125rem;
+}
+
+.reference {
+  overflow-wrap: anywhere;
+}
+
+time {
+  font-weight: 400;
+}

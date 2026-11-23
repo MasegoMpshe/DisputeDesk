@@ -103,9 +103,13 @@ export class SubmitDispute implements OnInit {
               this.duplicate.set(true);
               this.submitError.set('You already submitted a dispute for this transaction.');
               break;
-            case 400:
-              this.submitError.set('Check the reason and details and try again.');
+            case 400: {
+              const errors = error.error?.errors;
+              this.submitError.set(
+                errors?.TransactionId?.[0] ?? 'Check the reason and details and try again.',
+              );
               break;
+            }
             default:
               this.submitError.set('We couldn’t submit your dispute. Try again in a moment.');
           }

@@ -38,6 +38,8 @@ If Docker is already running in Linux container mode, skip to [Start the demo](#
 4. Open [https://localhost:8443](https://localhost:8443). Compose generates a self-signed development certificate, so your browser may ask you to trust it or continue to this local address. The API and Angular UI share this HTTPS origin.
 5. Sign in as `demo-naledi` with `DEMO_NALEDI_PASSWORD` from your `.env` file, or as `demo-thabo` with `DEMO_THABO_PASSWORD`.
 
+The optional `demo-reviewer` account is provisioned when `DEMO_REVIEWER_PASSWORD` is set in `.env`. If you are reusing an older `.env`, copy that entry from `.env.example`. Sign in as `demo-reviewer` with that password to open the review queue.
+
 To build just the application image, run `docker build -f DisputeDesk.Api/Dockerfile -t disputedesk .` from the repository root. Use Compose for the accompanying database, HTTPS configuration, and demo initialization.
 
 - `docker compose ps -a` shows the database, one-time setup, and app status. The setup container should exit with code 0.
@@ -64,6 +66,12 @@ The commands below are for PowerShell 7.2 or later. Run them from the repository
    dotnet user-secrets set 'ConnectionStrings:DisputeDesk' (Read-Host 'PostgreSQL connection string' -MaskInput) --project $apiProject
    dotnet user-secrets set 'DemoAccounts:demo-naledi:Password' (Read-Host 'Choose a demo-naledi password' -MaskInput) --project $apiProject
    dotnet user-secrets set 'DemoAccounts:demo-thabo:Password' (Read-Host 'Choose a demo-thabo password' -MaskInput) --project $apiProject
+   ```
+
+   To enable the demo reviewer, also set its password before provisioning.
+
+   ```powershell
+   dotnet user-secrets set 'DemoAccounts:demo-reviewer:Password' (Read-Host 'Choose a demo-reviewer password' -MaskInput) --project $apiProject
    ```
 
 3. Apply the migrations, seed the fictional customers and transactions, and provision the demo logins. Use the same password rules as in the Docker setup.
@@ -102,12 +110,24 @@ npm.cmd test -- --watch=false
 
 On macOS or Linux, use `npm` and slash-separated paths. The repository's Docker smoke workflow builds the Compose stack and checks the HTTPS frontend route, demo sign-in, transaction list, dispute submission, and dispute history.
 
+The PostgreSQL integration tests require `DISPUTEDESK_TEST_POSTGRES` to contain a connection string for a test PostgreSQL server and a role that can create databases. The tests create and remove a uniquely named database. With the variable set, run `dotnet test .\DisputeDesk.slnx --configuration Release` from the root. Without it, the PostgreSQL tests are reported as skipped.
+
 ### Review the workflow
 
-1. Sign in as `demo-naledi` and check that the dashboard shows two transactions and zero disputes on a fresh database.
-2. Open a transaction, select **Dispute this transaction**, pick a reason, and submit.
-3. Note the reference, then open **View all disputes** and check the entry remains visible after refreshing. Return to the dashboard and confirm the dispute count increased.
-4. Sign out and sign in as `demo-thabo`. Verify that the other customer's dispute is absent from this account.
+1. Sign in as `demo-naledi`. On a fresh database, the dashboard shows two transactions and zero disputes.
+2. Open a transaction, choose **Dispute this transaction**, pick a reason, and submit. The first timeline entry should be **Submitted**. Return to **View all disputes** and sign out.
+3. Sign in as `demo-reviewer`. Open the case from the review queue, choose **Start review**, and record an approval or rejection with a decision note. Return to the queue and check that the closed dispute is gone.
+4. Sign out and sign back in as `demo-naledi`. The bell shows two unread updates, one for **Under review** and one for the decision. Open either update to mark it as read and see the dispute timeline. Refresh and check that the remaining unread count is one.
+5. Open **View all disputes** and filter by the decision status and submission date. The matching row shows the transaction amount. Clear the filters to return to the whole list.
+6. Submit a different transaction as a second dispute and withdraw it while it is **Submitted**. Confirm that the timeline records **Withdrawn**. Sign in as `demo-thabo` and verify that Naledi's disputes and notifications are absent.
+
+### Verify lifecycle endpoints
+
+In Development, use Swagger with a customer or reviewer session. Call `GET /api/auth/session` to verify the active role.
+
+- Customers can call `POST /api/disputes/{id}/withdraw` with `{}` while their dispute is Submitted. New disputes can be filed up to and including 120 days after the recorded transaction time.
+- Reviewers can open `GET /api/reviewer/disputes`, start review with `POST /api/reviewer/disputes/{id}/review` and `{}`, then submit a decision to `POST /api/reviewer/disputes/{id}/decision` with `{"status":"Approved","note":"Review outcome"}` or a Rejected status.
+- Customers can check their timeline at `GET /api/disputes/{id}` and notifications at `GET /api/dispute-notifications`. Mark an update as read with `PUT /api/dispute-notifications/{id}/read`.
 
 ## Architecture
 

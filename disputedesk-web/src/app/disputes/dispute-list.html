@@ -1,10 +1,41 @@
 <a routerLink="/dashboard">Back to dashboard</a>
 <div class="page-heading">
   <h1>Disputes</h1>
-  @if (disputes()) {
-    <app-sign-out />
-  }
+  <app-sign-out />
 </div>
+<form class="panel filters" [formGroup]="filters" (ngSubmit)="apply()" aria-label="Filter disputes">
+  <label>
+    Status
+    <select formControlName="status">
+      <option value="">All statuses</option>
+      @for (status of statuses; track status[0]) {
+        <option [value]="status[0]">{{ status[1] }}</option>
+      }
+    </select>
+  </label>
+  <label>
+    Submitted from
+    <input type="date" formControlName="from" />
+  </label>
+  <label>
+    Submitted to
+    <input
+      type="date"
+      formControlName="to"
+      [attr.aria-invalid]="filterError() ? 'true' : null"
+      [attr.aria-describedby]="filterError() ? 'date-range-error' : null"
+    />
+  </label>
+  <div class="filter-actions">
+    <button type="submit">Apply filters</button>
+    <button type="button" class="secondary" (click)="reset()">Clear</button>
+  </div>
+  @if (filterError()) {
+    <p class="error" id="date-range-error" role="alert">
+      Choose an end date on or after the start date.
+    </p>
+  }
+</form>
 <section class="panel" aria-label="Your disputes">
   @if (loadError()) {
     <div class="state">
@@ -13,20 +44,11 @@
     </div>
   } @else if (disputes(); as items) {
     @if (items.length) {
-      <ul>
-        @for (dispute of items; track dispute.id) {
-          <li>
-            <a [routerLink]="['/disputes', dispute.id]">{{ dispute.transactionDescription }}</a>
-            <span class="muted reference-number">{{ dispute.referenceNumber }}</span>
-            <span class="status-label">{{ dispute.status }}</span>
-            <time class="muted" [attr.datetime]="dispute.submittedAt">{{
-              dispute.submittedAt | date: 'mediumDate'
-            }}</time>
-          </li>
-        }
-      </ul>
+      <app-dispute-rows [items]="items" />
     } @else {
-      <p class="state">You have no disputes yet.</p>
+      <p class="state" role="status">
+        {{ filtered() ? 'No disputes match these filters.' : 'You have no disputes yet.' }}
+      </p>
     }
   } @else {
     <p class="state" role="status">Loading disputes…</p>

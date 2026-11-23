@@ -1,0 +1,68 @@
+<a routerLink="/reviewer/disputes">Back to review queue</a>
+<section class="panel review" aria-labelledby="review-title">
+  <div class="heading">
+    <h1 id="review-title">Review dispute</h1>
+    <app-sign-out />
+  </div>
+  @if (feedback()) {
+    <p role="status">{{ feedback() }}</p>
+  }
+  @if (actionError()) {
+    <p class="error" role="alert">{{ actionError() }}</p>
+  }
+  @if (dispute(); as item) {
+    <app-dispute-record [dispute]="item" />
+    <app-dispute-timeline [entries]="item.timeline" />
+    @if (item.summary.status === 'Submitted') {
+      <div class="review-actions">
+        <button type="button" [disabled]="pending()" (click)="startReview()">
+          {{ pending() ? 'Starting review…' : 'Start review' }}
+        </button>
+      </div>
+    } @else if (item.summary.status === 'Under review') {
+      <form
+        class="review-actions"
+        [formGroup]="form"
+        (ngSubmit)="decide()"
+        aria-labelledby="decision-heading"
+      >
+        <h2 id="decision-heading">Record a decision</h2>
+        <label for="outcome">Outcome</label>
+        <select id="outcome" formControlName="outcome" required>
+          <option value="" disabled>Select an outcome</option>
+          <option value="Approved">Approve</option>
+          <option value="Rejected">Reject</option>
+        </select>
+        @if (form.controls.outcome.touched && form.controls.outcome.invalid) {
+          <p class="error">Select an outcome.</p>
+        }
+        <label for="decision-note">Decision note</label>
+        <textarea
+          id="decision-note"
+          formControlName="note"
+          rows="4"
+          required
+          maxlength="2000"
+          [attr.aria-invalid]="
+            form.controls.note.touched && form.controls.note.invalid ? 'true' : null
+          "
+          [attr.aria-describedby]="
+            form.controls.note.touched && form.controls.note.invalid ? 'note-error' : null
+          "
+        ></textarea>
+        @if (form.controls.note.touched && form.controls.note.invalid) {
+          <p class="error" id="note-error">Enter a decision note of up to 2,000 characters.</p>
+        }
+        <p class="muted">The customer can read this note in the dispute timeline.</p>
+        <button type="submit" [disabled]="pending()">
+          {{ pending() ? 'Saving decision…' : 'Save decision' }}
+        </button>
+      </form>
+    }
+  } @else if (loadError()) {
+    <p class="error" role="alert">{{ loadError() }}</p>
+    <button type="button" class="secondary" (click)="retry()">Try again</button>
+  } @else {
+    <p role="status">Loading dispute…</p>
+  }
+</section>

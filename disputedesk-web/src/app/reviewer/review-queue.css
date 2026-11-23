@@ -1,0 +1,13 @@
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.state {
+  margin: 0;
+  padding: 1rem 1.25rem;
+}
