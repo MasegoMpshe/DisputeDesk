@@ -28,6 +28,7 @@ public sealed class PostgreSqlDisputeFixture : IAsyncLifetime
     public static readonly Guid OtherTransaction = Guid.NewGuid();
     public static readonly Guid RaceTransaction = Guid.NewGuid();
     public static readonly Guid WithdrawalTransaction = Guid.NewGuid();
+    public static readonly Guid PaginationTransaction = Guid.NewGuid();
     public static readonly Guid LegacyTransaction = Guid.NewGuid();
     public static readonly Guid LegacyDispute = Guid.NewGuid();
 
@@ -56,6 +57,7 @@ public sealed class PostgreSqlDisputeFixture : IAsyncLifetime
             }
 
             connection.Database = databaseName;
+            connection.Pooling = true;
             App = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
             {
                 builder.UseEnvironment("Testing");
@@ -83,6 +85,7 @@ public sealed class PostgreSqlDisputeFixture : IAsyncLifetime
                 Purchase(OtherTransaction, other.Id, Now),
                 Purchase(RaceTransaction, customer.Id, Now),
                 Purchase(WithdrawalTransaction, customer.Id, Now),
+                Purchase(PaginationTransaction, customer.Id, Now.AddDays(-1)),
                 Purchase(LegacyTransaction, other.Id, Now.AddDays(-200)));
             await database.SaveChangesAsync();
             await database.Database.ExecuteSqlInterpolatedAsync($"""

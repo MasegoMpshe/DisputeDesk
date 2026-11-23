@@ -2,6 +2,10 @@ using DisputeDesk.Application.Dashboard;
 using DisputeDesk.Application.Disputes;
 using DisputeDesk.Api;
 using DisputeDesk.Api.Health;
+using DisputeDesk.Api.Logging;
+using Serilog;
+using Serilog.Configuration;
+using Serilog.Formatting.Compact;
 using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using DisputeDesk.Application.Transactions;
@@ -10,6 +14,28 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddSerilog((_, logger) =>
+{
+    logger.ReadFrom.Configuration(builder.Configuration)
+        .Enrich.FromLogContext()
+        .WriteTo.Console(new RenderedCompactJsonFormatter());
+
+    var connectionString = builder.Configuration.GetConnectionString("DisputeDesk");
+    if (builder.Configuration.GetValue<bool>("RequestLogging:PersistToPostgreSql")
+        && !string.IsNullOrWhiteSpace(connectionString))
+    {
+        logger.WriteTo.Logger(requests => requests
+            .Filter.ByIncludingOnly(PostgreSqlRequestLogSink.IsRequestCompletion)
+            .WriteTo.Sink(new PostgreSqlRequestLogSink(connectionString), new BatchingOptions
+            {
+                BatchSizeLimit = 50,
+                QueueLimit = 1000,
+                BufferingTimeLimit = TimeSpan.FromSeconds(2),
+                RetryTimeLimit = TimeSpan.FromSeconds(15)
+            }));
+    }
+});
 
 builder.Services.AddDbContext<DisputeDeskDbContext>(options =>
 {
@@ -61,7 +87,8 @@ builder.Services.AddScoped<IDisputeWriter>(services => services.GetRequiredServi
 builder.Services.AddScoped<IDisputeNotifications, DisputeNotificationStore>();
 builder.Services.Configure<DemoTransactionOptions>(builder.Configuration.GetSection(DemoTransactionOptions.SectionName));
 builder.Services.AddScoped<IDemoTransactionGenerator, DemoTransactionGenerator>();
-builder.Services.AddProblemDetails();
+builder.Services.AddProblemDetails(options => options.CustomizeProblemDetails = context =>
+    context.ProblemDetails.Extensions["correlationId"] = ApiRequestLoggingMiddleware.CorrelationId(context.HttpContext));
 builder.Services.AddHealthChecks()
     .AddCheck<PostgreSqlReadinessCheck>("postgresql", tags: ["ready"], timeout: TimeSpan.FromSeconds(3));
 builder.Services.AddControllers();
@@ -93,6 +120,8 @@ if (migrateDatabase || provisionDemoAccounts)
     return;
 }
 
+app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
+    api => api.UseMiddleware<ApiRequestLoggingMiddleware>());
 app.UseExceptionHandler(new ExceptionHandlerOptions
 {
     StatusCodeSelector = exception => exception is BadHttpRequestException badRequest

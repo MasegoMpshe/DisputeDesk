@@ -27,6 +27,18 @@ public sealed class DisputesController(IDisputeReader disputes, IDisputeWriter w
             new DisputeFilter(status, from, to), cancellationToken);
     }
 
+    [HttpGet("page")]
+    public async Task<ActionResult<DisputePage>> Page([FromQuery] PageRequest request, CancellationToken cancellationToken)
+    {
+        if (request.From > request.To)
+        {
+            return InvalidSubmission(nameof(request.From), "The start of the date range must be before or equal to its end.");
+        }
+
+        return await disputes.PageAsync(DisputeAccess.UserId(User),
+            new DisputeFilter(request.Status, request.From, request.To), request.Page, request.PageSize, cancellationToken);
+    }
+
     [HttpGet("reasons")]
     public async Task<ActionResult<DisputeReasonOption[]>> Reasons(CancellationToken cancellationToken) =>
         await disputes.ListReasonsAsync(cancellationToken);
@@ -103,6 +115,13 @@ public sealed class DisputesController(IDisputeReader disputes, IDisputeWriter w
         ModelState.AddModelError(field, message);
         return ValidationProblem(ModelState);
     }
+
+    public sealed record PageRequest(
+        DisputeStatus? Status,
+        DateTimeOffset? From,
+        DateTimeOffset? To,
+        [Range(1, int.MaxValue)] int Page = 1,
+        [Range(1, 50)] int PageSize = 10);
 
     public sealed record SubmitDisputeRequest(
         Guid TransactionId,

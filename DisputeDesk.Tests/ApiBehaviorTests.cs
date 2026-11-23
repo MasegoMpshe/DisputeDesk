@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using System.Security.Claims;
 using DisputeDesk.Application.Dashboard;
 using DisputeDesk.Application.Disputes;
@@ -17,7 +18,7 @@ using Microsoft.Extensions.Options;
 
 namespace DisputeDesk.Tests;
 
-public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicationFactory<Program>>
+public sealed class ApiBehaviorTests : IClassFixture<WebApplicationFactory<Program>>
 {
     private static readonly TransactionSummary NalediTransaction =
         new(Guid.Parse("20000000-0000-4000-8000-000000000001"), "Grocery", 32.50m, "ZAR", DateTimeOffset.UnixEpoch);
@@ -31,7 +32,7 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
 
     private readonly WebApplicationFactory<Program> factory;
 
-    public TransactionsAuthorizationTests(WebApplicationFactory<Program> factory)
+    public ApiBehaviorTests(WebApplicationFactory<Program> factory)
     {
         this.factory = factory.WithWebHostBuilder(builder =>
         {
@@ -64,6 +65,8 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
         using var disputes = await client.GetAsync("/api/disputes");
         Assert.Equal(HttpStatusCode.Unauthorized, dashboard.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, disputes.StatusCode);
+        using var pagedDisputes = await client.GetAsync("/api/disputes/page");
+        Assert.Equal(HttpStatusCode.Unauthorized, pagedDisputes.StatusCode);
     }
 
     [Fact]
@@ -74,7 +77,11 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
 
         Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
         Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
-        Assert.Equal(500, (await response.Content.ReadFromJsonAsync<ProblemDetails>())?.Status);
+        var problem = await response.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal(500, problem.GetProperty("status").GetInt32());
+        var correlationId = Assert.Single(response.Headers.GetValues("X-Correlation-ID"));
+        Assert.False(string.IsNullOrWhiteSpace(correlationId));
+        Assert.Equal(correlationId, problem.GetProperty("correlationId").GetString());
         Assert.DoesNotContain("Internal test marker", await response.Content.ReadAsStringAsync());
     }
 
@@ -298,6 +305,13 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
             Task.FromResult<DisputeSummary[]>(identityUserId == "demo-naledi"
                 ? [NalediDispute]
                 : []);
+
+        public async Task<DisputePage> PageAsync(string identityUserId, DisputeFilter filter, int page, int pageSize,
+            CancellationToken cancellationToken)
+        {
+            var items = await ListAsync(identityUserId, filter, cancellationToken);
+            return new DisputePage(items, items.Length, 1, pageSize);
+        }
 
         public Task<DisputeDetails?> FindAsync(string identityUserId, Guid disputeId, CancellationToken cancellationToken) =>
             Task.FromResult<DisputeDetails?>(identityUserId == "demo-naledi" && disputeId == NalediDispute.Id

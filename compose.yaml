@@ -63,6 +63,7 @@ services:
       ASPNETCORE_Kestrel__Certificates__Default__Password: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
       ConnectionStrings__DisputeDesk: *database-connection
       DemoTransactions__Enabled: "true"
+      RequestLogging__PersistToPostgreSql: "true"
     ports:
       - "127.0.0.1:8443:8443"
     volumes:

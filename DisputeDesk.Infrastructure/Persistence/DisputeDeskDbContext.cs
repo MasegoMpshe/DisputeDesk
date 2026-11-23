@@ -19,6 +19,22 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
     {
         base.OnModelCreating(modelBuilder);
 
+        modelBuilder.HasSequence<int>("dispute_reference_numbers").HasMax(99_999_999);
+
+        var requestLogs = modelBuilder.Entity<ApiRequestLog>();
+        requestLogs.ToTable("api_request_logs");
+        requestLogs.HasKey(log => log.Id);
+        requestLogs.Property(log => log.Id).HasColumnName("id");
+        requestLogs.Property(log => log.OccurredAt).HasColumnName("occurred_at");
+        requestLogs.Property(log => log.CorrelationId).HasColumnName("correlation_id").HasMaxLength(64);
+        requestLogs.Property(log => log.Method).HasColumnName("method").HasMaxLength(16);
+        requestLogs.Property(log => log.RoutePattern).HasColumnName("route_pattern");
+        requestLogs.Property(log => log.StatusCode).HasColumnName("status_code");
+        requestLogs.Property(log => log.DurationMs).HasColumnName("duration_ms");
+        requestLogs.Property(log => log.Level).HasColumnName("level").HasMaxLength(16);
+        requestLogs.HasIndex(log => log.OccurredAt);
+        requestLogs.HasIndex(log => log.CorrelationId);
+
         var customers = modelBuilder.Entity<Customer>();
         customers.ToTable("customers");
         customers.HasKey(customer => customer.Id);
@@ -68,7 +84,9 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
         disputes.HasKey(dispute => dispute.Id);
         disputes.Property(dispute => dispute.Id).HasColumnName("id");
         disputes.Property(dispute => dispute.TransactionId).HasColumnName("transaction_id");
-        disputes.Property(dispute => dispute.ReferenceNumber).HasColumnName("reference_number");
+        disputes.Property(dispute => dispute.ReferenceNumber).HasColumnName("reference_number")
+            .HasSentinel(string.Empty)
+            .HasDefaultValueSql("'DD-' || lpad(nextval('dispute_reference_numbers')::text, 8, '0')");
         disputes.Property(dispute => dispute.Reason).HasColumnName("reason");
         disputes.Property(dispute => dispute.Details).HasColumnName("details");
         disputes.Property(dispute => dispute.Status).HasColumnName("status").HasConversion<string>().IsConcurrencyToken();

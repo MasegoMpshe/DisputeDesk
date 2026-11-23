@@ -59,7 +59,9 @@ jq -e '.code == "filingWindowExpired"' <<< "${expired_response%$'\n'*}" >/dev/nu
 dispute_id="$(jq -nc --arg id "$transaction_id" --arg reason "$reason_code" \
   '{transactionId:$id, reasonCode:$reason, details:"Compose smoke test"}' |
   request "$customer" -H 'Content-Type: application/json' --data @- "$base_url/api/disputes" |
-  jq -er 'select(.summary.status == "Submitted") | .summary.id')"
+  jq -er 'select(.summary.status == "Submitted" and (.summary.referenceNumber | test("^DD-[0-9]{8}$"))) | .summary.id')"
+request "$customer" "$base_url/api/disputes/page?pageSize=1&status=Submitted" |
+  jq -e --arg id "$dispute_id" '.totalCount == 1 and .items[0].id == $id' >/dev/null
 sign_out "$customer"
 
 printf '%s\n' 'Recording a reviewer decision'

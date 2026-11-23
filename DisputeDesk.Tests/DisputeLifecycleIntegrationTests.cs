@@ -6,6 +6,10 @@ using DisputeDesk.Application.Disputes;
 using DisputeDesk.Application.Transactions;
 using DisputeDesk.Domain;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
+using DisputeDesk.Infrastructure;
+using Npgsql;
 using Microsoft.Extensions.DependencyInjection;
 using static DisputeDesk.Tests.PostgreSqlDisputeFixture;
 
@@ -24,6 +28,50 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         using var response = await client.GetAsync("/health/ready");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [PostgreSqlFact]
+    public async Task StructuredRequestMetadataIsPersistedWithTheResponseCorrelationId()
+    {
+        using var loggedApp = fixture.App.WithWebHostBuilder(builder =>
+            builder.ConfigureAppConfiguration((_, config) => config.AddInMemoryCollection(
+                new Dictionary<string, string?> { ["RequestLogging:PersistToPostgreSql"] = "true" })));
+        using var client = loggedApp.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+
+        using var response = await client.GetAsync("/api/disputes/page?search=private-query-value");
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+        var correlationId = Assert.Single(response.Headers.GetValues("X-Correlation-ID"));
+
+        await using var scope = fixture.App.Services.CreateAsyncScope();
+        var database = scope.ServiceProvider.GetRequiredService<DisputeDeskDbContext>();
+        await using var connection = new NpgsqlConnection(database.Database.GetConnectionString());
+        await connection.OpenAsync();
+        await using var query = new NpgsqlCommand("""
+            SELECT method, route_pattern, status_code, duration_ms, level
+            FROM api_request_logs WHERE correlation_id = $1
+            """, connection);
+        query.Parameters.Add(new NpgsqlParameter<string> { TypedValue = correlationId });
+        using var wait = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        while (true)
+        {
+            await using (var row = await query.ExecuteReaderAsync(wait.Token))
+            {
+                if (await row.ReadAsync(wait.Token))
+                {
+                    Assert.Equal("GET", row.GetString(0));
+                    Assert.Equal("api/disputes/page", row.GetString(1).TrimStart('/'));
+                    Assert.Equal(401, row.GetInt32(2));
+                    Assert.True(row.GetDouble(3) >= 0);
+                    Assert.Equal("Information", row.GetString(4));
+                    return;
+                }
+            }
+
+            await Task.Delay(250, wait.Token);
+        }
     }
 
     [PostgreSqlFact]
@@ -58,6 +106,7 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         using var submitted = await SubmitAsync(customer, BoundaryTransaction);
         Assert.Equal(HttpStatusCode.Created, submitted.StatusCode);
         var dispute = Assert.IsType<DisputeDetails>(await submitted.Content.ReadFromJsonAsync<DisputeDetails>());
+        Assert.Matches("^DD-[0-9]{8}$", dispute.Summary.ReferenceNumber);
         Assert.Equal("Submitted", Assert.Single(dispute.Timeline).Status);
         var id = dispute.Summary.Id;
 
@@ -103,6 +152,25 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         Assert.Equal(id, Assert.Single(matching!).Id);
         Assert.Empty((await customer.GetFromJsonAsync<DisputeSummary[]>("/api/disputes?status=Rejected"))!);
         Assert.Empty((await customer.GetFromJsonAsync<DisputeSummary[]>("/api/disputes?from=2026-11-24"))!);
+
+        using var paginatedSubmission = await SubmitAsync(customer, PaginationTransaction);
+        Assert.Equal(HttpStatusCode.Created, paginatedSubmission.StatusCode);
+        var secondReceipt = Assert.IsType<DisputeDetails>(await paginatedSubmission.Content.ReadFromJsonAsync<DisputeDetails>());
+        Assert.Matches("^DD-[0-9]{8}$", secondReceipt.Summary.ReferenceNumber);
+        Assert.NotEqual(dispute.Summary.ReferenceNumber, secondReceipt.Summary.ReferenceNumber);
+
+        var first = Assert.IsType<DisputePage>(
+            await customer.GetFromJsonAsync<DisputePage>("/api/disputes/page?from=2026-11-23&pageSize=1"));
+        var second = Assert.IsType<DisputePage>(
+            await customer.GetFromJsonAsync<DisputePage>("/api/disputes/page?from=2026-11-23&pageSize=1&page=2"));
+        Assert.True(first.TotalCount >= 2);
+        Assert.Equal(first.TotalCount, second.TotalCount);
+        Assert.Equal(2, second.Page);
+        Assert.NotEqual(Assert.Single(first.Items).Id, Assert.Single(second.Items).Id);
+        var approved = await customer.GetFromJsonAsync<DisputePage>("/api/disputes/page?status=Approved");
+        Assert.Equal(id, Assert.Single(approved!.Items).Id);
+        var otherPage = await other.GetFromJsonAsync<DisputePage>("/api/disputes/page?from=2026-11-23&pageSize=1");
+        Assert.Empty(otherPage!.Items);
 
         var notifications = (await customer.GetFromJsonAsync<DisputeNotificationItem[]>("/api/dispute-notifications"))!
             .Where(item => item.DisputeId == id).ToArray();
@@ -179,6 +247,7 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         using var customer = await SignInAsync(OtherUser);
         using var reviewer = await SignInAsync(ReviewerUser);
         var original = await customer.GetFromJsonAsync<DisputeDetails>($"/api/disputes/{LegacyDispute}");
+        Assert.Equal("DD-LEGACY", original!.Summary.ReferenceNumber);
         var initial = Assert.Single(original!.Timeline);
         Assert.Equal(Now.AddDays(-180), initial.ChangedAt);
         Assert.Equal("Submitted", initial.Status);

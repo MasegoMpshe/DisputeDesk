@@ -22,6 +22,9 @@ namespace DisputeDesk.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.HasSequence<int>("dispute_reference_numbers")
+                .HasMax(99999999L);
+
             modelBuilder.Entity("DisputeDesk.Domain.Customer", b =>
                 {
                     b.Property<Guid>("Id")
@@ -70,8 +73,10 @@ namespace DisputeDesk.Infrastructure.Migrations
 
                     b.Property<string>("ReferenceNumber")
                         .IsRequired()
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("text")
-                        .HasColumnName("reference_number");
+                        .HasColumnName("reference_number")
+                        .HasDefaultValueSql("'DD-' || lpad(nextval('dispute_reference_numbers')::text, 8, '0')");
 
                     b.Property<string>("Status")
                         .IsConcurrencyToken()
@@ -290,6 +295,59 @@ namespace DisputeDesk.Infrastructure.Migrations
                     b.HasIndex("CustomerId", "OccurredAt");
 
                     b.ToTable("transactions", (string)null);
+                });
+
+            modelBuilder.Entity("DisputeDesk.Infrastructure.ApiRequestLog", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<string>("CorrelationId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("correlation_id");
+
+                    b.Property<double>("DurationMs")
+                        .HasColumnType("double precision")
+                        .HasColumnName("duration_ms");
+
+                    b.Property<string>("Level")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("level");
+
+                    b.Property<string>("Method")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("method");
+
+                    b.Property<DateTimeOffset>("OccurredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("occurred_at");
+
+                    b.Property<string>("RoutePattern")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("route_pattern");
+
+                    b.Property<int>("StatusCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("status_code");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CorrelationId");
+
+                    b.HasIndex("OccurredAt");
+
+                    b.ToTable("api_request_logs", (string)null);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>

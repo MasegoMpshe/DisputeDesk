@@ -39,12 +39,10 @@ public sealed class Dispute
             return (null, DisputeFilingError.DetailsRequired);
         }
 
-        var id = Guid.NewGuid();
         return (new Dispute
         {
-            Id = id,
+            Id = Guid.NewGuid(),
             TransactionId = transaction.Id,
-            ReferenceNumber = $"DD-{id:N}".ToUpperInvariant(),
             ReasonCode = reason.Code,
             Reason = reason.Label,
             Details = details,

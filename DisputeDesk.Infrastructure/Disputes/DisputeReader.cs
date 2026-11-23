@@ -15,7 +15,22 @@ public sealed class DisputeReader(DisputeDeskDbContext context) : IDisputeReader
             .ToArrayAsync(cancellationToken);
 
     public Task<DisputeSummary[]> ListAsync(
-        string identityUserId, DisputeFilter filter, CancellationToken cancellationToken)
+        string identityUserId, DisputeFilter filter, CancellationToken cancellationToken) =>
+        Summaries(Ordered(Filter(identityUserId, filter))).ToArrayAsync(cancellationToken);
+
+    public async Task<DisputePage> PageAsync(string identityUserId, DisputeFilter filter, int page, int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var cases = Filter(identityUserId, filter);
+        var count = await cases.CountAsync(cancellationToken);
+        var lastPage = count == 0 ? 1 : (count - 1) / pageSize + 1;
+        page = Math.Min(page, lastPage);
+        var items = await Summaries(Ordered(cases).Skip((page - 1) * pageSize).Take(pageSize))
+            .ToArrayAsync(cancellationToken);
+        return new DisputePage(items, count, page, pageSize);
+    }
+
+    private IQueryable<CustomerQueries.OwnedDispute> Filter(string identityUserId, DisputeFilter filter)
     {
         var cases = context.DisputesFor(identityUserId);
         if (filter.Status is { } status)
@@ -35,7 +50,7 @@ public sealed class DisputeReader(DisputeDeskDbContext context) : IDisputeReader
             cases = cases.Where(item => item.Dispute.SubmittedAt <= end);
         }
 
-        return SummariesAsync(cases, cancellationToken);
+        return cases;
     }
 
     public Task<DisputeDetails?> FindAsync(
@@ -43,19 +58,19 @@ public sealed class DisputeReader(DisputeDeskDbContext context) : IDisputeReader
         FindAsync(context.DisputesFor(identityUserId), disputeId, cancellationToken);
 
     public Task<DisputeSummary[]> ListOpenAsync(CancellationToken cancellationToken) =>
-        SummariesAsync(context.DisputesForTransactions(context.Transactions.AsNoTracking())
-            .Where(item => item.Dispute.Status == DisputeStatus.Submitted || item.Dispute.Status == DisputeStatus.UnderReview),
-            cancellationToken);
+        Summaries(Ordered(context.DisputesForTransactions(context.Transactions.AsNoTracking())
+            .Where(item => item.Dispute.Status == DisputeStatus.Submitted || item.Dispute.Status == DisputeStatus.UnderReview)))
+            .ToArrayAsync(cancellationToken);
 
     public Task<DisputeDetails?> FindAsync(Guid disputeId, CancellationToken cancellationToken) =>
         FindAsync(context.DisputesForTransactions(context.Transactions.AsNoTracking()), disputeId, cancellationToken);
 
-    private static Task<DisputeSummary[]> SummariesAsync(
-        IQueryable<CustomerQueries.OwnedDispute> cases, CancellationToken cancellationToken) =>
-        (from item in cases
-         orderby item.Dispute.SubmittedAt descending, item.Dispute.Id
-         select DisputeSummary.From(item.Dispute, item.Transaction))
-        .ToArrayAsync(cancellationToken);
+    private static IOrderedQueryable<CustomerQueries.OwnedDispute> Ordered(
+        IQueryable<CustomerQueries.OwnedDispute> cases) =>
+        cases.OrderByDescending(item => item.Dispute.SubmittedAt).ThenBy(item => item.Dispute.Id);
+
+    private static IQueryable<DisputeSummary> Summaries(IQueryable<CustomerQueries.OwnedDispute> cases) =>
+        cases.Select(item => DisputeSummary.From(item.Dispute, item.Transaction));
 
     private async Task<DisputeDetails?> FindAsync(
         IQueryable<CustomerQueries.OwnedDispute> cases, Guid disputeId, CancellationToken cancellationToken)
