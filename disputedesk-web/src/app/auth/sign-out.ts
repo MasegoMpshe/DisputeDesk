@@ -6,12 +6,29 @@ import { AuthApi } from './auth-api';
 
 @Component({
   selector: 'app-sign-out',
+  styles: `
+    :host {
+      position: relative;
+      display: block;
+    }
+    button {
+      white-space: nowrap;
+    }
+    .sign-out-error {
+      position: absolute;
+      z-index: 6;
+      inset: calc(100% + 0.5rem) 0 auto auto;
+      width: min(16rem, calc(100vw - 2rem));
+      padding: 0.65rem 0.85rem;
+      margin: 0;
+    }
+  `,
   template: `
     <button type="button" class="secondary" [disabled]="pending()" (click)="logout()">
       {{ pending() ? 'Signing out…' : 'Sign out' }}
     </button>
     @if (failed()) {
-      <p class="error" role="alert">We couldn’t sign you out. Try again.</p>
+      <p class="panel error sign-out-error" role="alert">We couldn’t sign you out. Try again.</p>
     }
   `,
 })

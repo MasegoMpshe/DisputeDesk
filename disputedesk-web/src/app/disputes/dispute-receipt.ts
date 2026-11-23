@@ -8,8 +8,10 @@ import { DisputeRecord } from './dispute-record';
 import { DisputeTimeline } from './dispute-timeline';
 import { DisputeDetails, DisputesApi } from './disputes-api';
 
+import { NotificationBell } from '../notifications/notification-bell';
+
 @Component({
-  imports: [RouterLink, DisputeRecord, DisputeTimeline],
+  imports: [NotificationBell, RouterLink, DisputeRecord, DisputeTimeline],
   templateUrl: './dispute-receipt.html',
   styleUrl: './dispute-receipt.css',
 })

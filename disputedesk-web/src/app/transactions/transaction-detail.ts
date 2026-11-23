@@ -6,8 +6,10 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EMPTY, catchError, switchMap, tap } from 'rxjs';
 import { Transaction, TransactionsApi } from './transactions-api';
 
+import { NotificationBell } from '../notifications/notification-bell';
+
 @Component({
-  imports: [CurrencyPipe, DatePipe, RouterLink],
+  imports: [NotificationBell, CurrencyPipe, DatePipe, RouterLink],
   templateUrl: './transaction-detail.html',
   styleUrl: './transaction-detail.css',
 })

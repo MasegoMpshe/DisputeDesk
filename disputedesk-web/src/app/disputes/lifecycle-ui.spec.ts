@@ -120,6 +120,7 @@ describe('Dispute lifecycle UI', () => {
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/disputes').flush([dispute('Approved').summary]);
     fixture.detectChanges();
+    http.expectOne('/api/dispute-notifications').flush([]);
     expect(root(fixture).textContent).toContain('325.00');
 
     field(fixture, '[formControlName="status"]', 'Approved');
@@ -142,12 +143,14 @@ describe('Dispute lifecycle UI', () => {
     const http = TestBed.inject(HttpTestingController);
     http.expectOne('/api/disputes/' + id).flush(dispute('Submitted'));
     fixture.detectChanges();
+    http.expectOne('/api/dispute-notifications').flush([]);
     click(fixture, 'Withdraw dispute');
     http.expectNone('/api/disputes/' + id + '/withdraw');
     click(fixture, 'Confirm withdrawal');
     const request = http.expectOne('/api/disputes/' + id + '/withdraw');
     expect(request.request.method).toBe('POST');
     request.flush(null, { status: 204, statusText: 'No Content' });
+    http.expectOne('/api/dispute-notifications').flush([]);
     http.expectOne('/api/disputes/' + id).flush(dispute('Withdrawn'));
     fixture.detectChanges();
 
@@ -182,6 +185,7 @@ describe('Dispute lifecycle UI', () => {
     const fixture = TestBed.createComponent(SubmitDispute);
     const http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
+    http.expectOne('/api/dispute-notifications').flush([]);
     http.expectOne('/api/transactions/' + id).flush({
       id: transactionId,
       description: 'Grocery purchase',

@@ -1,4 +1,7 @@
-<a routerLink="/transactions">Back to transactions</a>
+<div class="customer-page-actions">
+  <a routerLink="/transactions">Back to transactions</a>
+  <app-notification-bell />
+</div>
 <section class="panel detail-panel" aria-labelledby="transaction-title">
   @if (transaction(); as item) {
     <h1 id="transaction-title">{{ item.description }}</h1>

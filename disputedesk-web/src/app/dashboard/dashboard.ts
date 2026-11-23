@@ -2,13 +2,14 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { SignOut } from '../auth/sign-out';
+import { NotificationBell } from '../notifications/notification-bell';
+import { DisputeStatusFilter, disputeStatuses } from '../disputes/disputes-api';
 import { TransactionsApi } from '../transactions/transactions-api';
 import { TransactionRows } from '../transactions/transaction-rows';
 import { DashboardApi, DashboardSummary } from './dashboard-api';
 
 @Component({
-  imports: [RouterLink, SignOut, TransactionRows],
+  imports: [RouterLink, NotificationBell, TransactionRows],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css',
 })
@@ -18,6 +19,9 @@ export class Dashboard implements OnInit {
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
+  protected readonly statuses = (Object.keys(disputeStatuses) as DisputeStatusFilter[]).map(
+    (key) => ({ key, label: disputeStatuses[key] }),
+  );
   protected readonly summary = signal<DashboardSummary | null>(null);
   protected readonly loadError = signal(false);
 

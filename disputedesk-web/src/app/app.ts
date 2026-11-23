@@ -1,10 +1,10 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { AuthApi } from './auth/auth-api';
-import { NotificationBell } from './notifications/notification-bell';
+import { SignOut } from './auth/sign-out';
 
 @Component({
-  imports: [RouterOutlet, NotificationBell],
+  imports: [RouterOutlet, SignOut],
   selector: 'app-root',
   templateUrl: './app.html',
 })

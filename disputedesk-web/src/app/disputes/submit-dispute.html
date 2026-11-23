@@ -1,4 +1,7 @@
-<a routerLink="/transactions">Back to transactions</a>
+<div class="customer-page-actions">
+  <a routerLink="/transactions">Back to transactions</a>
+  <app-notification-bell />
+</div>
 <section class="panel form-panel" aria-labelledby="dispute-title">
   <h1 id="dispute-title">Dispute a transaction</h1>
   @if (transaction(); as item) {

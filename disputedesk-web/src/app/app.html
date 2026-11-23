@@ -8,8 +8,8 @@
         </span>
         <span>Capitec assessment demo</span>
       </div>
-      @if (role() === 'Customer') {
-        <app-notification-bell />
+      @if (role()) {
+        <app-sign-out />
       }
     </div>
   </div>

@@ -1,4 +1,7 @@
-<a routerLink="/disputes">View all disputes</a>
+<div class="customer-page-actions">
+  <a routerLink="/disputes">View all disputes</a>
+  <app-notification-bell />
+</div>
 <section class="panel receipt" aria-labelledby="receipt-title">
   <h1 id="receipt-title">
     {{ dispute()?.summary?.status === 'Submitted' ? 'Dispute confirmation' : 'Dispute details' }}

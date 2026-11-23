@@ -4,14 +4,14 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
-import { SignOut } from '../auth/sign-out';
+import { NotificationBell } from '../notifications/notification-bell';
 import { DisputeRows } from './dispute-rows';
 import { Dispute, DisputeFilters, DisputesApi, disputeStatuses } from './disputes-api';
 
 const noFilters: DisputeFilters = { status: '', from: '', to: '' };
 
 @Component({
-  imports: [ReactiveFormsModule, RouterLink, SignOut, DisputeRows],
+  imports: [ReactiveFormsModule, RouterLink, NotificationBell, DisputeRows],
   templateUrl: './dispute-list.html',
   styleUrl: './dispute-list.css',
 })

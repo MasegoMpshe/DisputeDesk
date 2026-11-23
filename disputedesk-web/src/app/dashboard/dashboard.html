@@ -1,8 +1,6 @@
 <div class="page-heading">
   <h1>Dashboard</h1>
-  @if (summary()) {
-    <app-sign-out />
-  }
+  <app-notification-bell />
 </div>
 
 @if (summary(); as summary) {
@@ -19,6 +17,22 @@
       <a routerLink="/disputes">View all disputes</a>
     </section>
   </div>
+
+  <section class="dispute-breakdown" aria-labelledby="breakdown-title">
+    <h2 id="breakdown-title">Disputes by status</h2>
+    <div class="status-cards">
+      @for (status of statuses; track status.key) {
+        <section
+          class="panel status-card"
+          [class]="'status-' + status.key"
+          [attr.aria-labelledby]="'dispute-status-' + status.key"
+        >
+          <h3 [id]="'dispute-status-' + status.key">{{ status.label }}</h3>
+          <p>{{ summary.disputesByStatus?.[status.key] ?? 0 }}</p>
+        </section>
+      }
+    </div>
+  </section>
 
   <section class="recent" aria-labelledby="recent-title">
     <div class="section-heading">

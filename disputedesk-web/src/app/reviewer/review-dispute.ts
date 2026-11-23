@@ -4,14 +4,13 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { EMPTY, Observable, Subject, catchError, finalize, startWith, switchMap } from 'rxjs';
-import { SignOut } from '../auth/sign-out';
 import { DisputeRecord } from '../disputes/dispute-record';
 import { DisputeTimeline } from '../disputes/dispute-timeline';
 import { DisputeDetails } from '../disputes/disputes-api';
 import { ReviewOutcome, ReviewerApi } from './reviewer-api';
 
 @Component({
-  imports: [RouterLink, ReactiveFormsModule, SignOut, DisputeRecord, DisputeTimeline],
+  imports: [RouterLink, ReactiveFormsModule, DisputeRecord, DisputeTimeline],
   templateUrl: './review-dispute.html',
   styleUrl: './review-dispute.css',
 })

@@ -8,8 +8,10 @@ import { Transaction, TransactionsApi } from '../transactions/transactions-api';
 import { forkJoin } from 'rxjs';
 import { DisputeReasonOption, DisputesApi } from './disputes-api';
 
+import { NotificationBell } from '../notifications/notification-bell';
+
 @Component({
-  imports: [CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [NotificationBell, CurrencyPipe, ReactiveFormsModule, RouterLink],
   templateUrl: './submit-dispute.html',
   styleUrl: './submit-dispute.css',
 })

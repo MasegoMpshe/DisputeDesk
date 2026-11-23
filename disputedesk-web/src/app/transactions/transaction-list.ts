@@ -2,12 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
-import { SignOut } from '../auth/sign-out';
+import { NotificationBell } from '../notifications/notification-bell';
 import { TransactionRows } from './transaction-rows';
 import { Transaction, TransactionsApi } from './transactions-api';
 
 @Component({
-  imports: [RouterLink, SignOut, TransactionRows],
+  imports: [RouterLink, NotificationBell, TransactionRows],
   templateUrl: './transaction-list.html',
   styleUrl: './transaction-list.css',
 })

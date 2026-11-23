@@ -2,13 +2,12 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
-import { SignOut } from '../auth/sign-out';
 import { DisputeRows } from '../disputes/dispute-rows';
 import { Dispute } from '../disputes/disputes-api';
 import { ReviewerApi } from './reviewer-api';
 
 @Component({
-  imports: [DisputeRows, SignOut],
+  imports: [DisputeRows],
   templateUrl: './review-queue.html',
   styleUrl: './review-queue.css',
 })

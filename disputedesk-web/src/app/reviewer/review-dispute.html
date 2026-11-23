@@ -1,9 +1,6 @@
 <a routerLink="/reviewer/disputes">Back to review queue</a>
 <section class="panel review" aria-labelledby="review-title">
-  <div class="heading">
-    <h1 id="review-title">Review dispute</h1>
-    <app-sign-out />
-  </div>
+  <h1 id="review-title">Review dispute</h1>
   @if (feedback()) {
     <p role="status">{{ feedback() }}</p>
   }
