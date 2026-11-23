@@ -1,0 +1,49 @@
+name: Docker smoke test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and start DisputeDesk
+        run: |
+          cp .env.example .env
+          docker compose up --build -d
+      - name: Verify HTTPS, sign-in, and dispute history
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_url=https://localhost:8443
+          # Docker can publish the port before Kestrel is ready to negotiate TLS.
+          dashboard="$(curl -kfsS --retry 20 --retry-all-errors --retry-delay 2 --max-time 5 "$base_url/dashboard")"
+          grep '<app-root>' <<< "$dashboard"
+          test "$(curl -ksS -o /dev/null -w '%{http_code}' "$base_url/api/unknown")" = 404
+          source .env
+          export DEMO_NALEDI_PASSWORD
+          cookie_jar="$(mktemp)"
+          trap 'rm -f "$cookie_jar"' EXIT
+
+          jq -nc '{userName:"demo-naledi", password:env.DEMO_NALEDI_PASSWORD}' |
+            curl -kfsS -c "$cookie_jar" -H 'Content-Type: application/json' --data @- "$base_url/api/auth/login"
+
+          transaction_id="$(curl -kfsS -b "$cookie_jar" "$base_url/api/transactions" | jq -er '.[0].id')"
+          reason_code="$(curl -kfsS -b "$cookie_jar" "$base_url/api/disputes/reasons" | jq -er '.[0].code')"
+          jq -nc --arg id "$transaction_id" --arg reason "$reason_code" '{transactionId:$id, reasonCode:$reason, details:"Compose smoke test"}' |
+            curl -kfsS -b "$cookie_jar" -H 'Content-Type: application/json' --data @- "$base_url/api/disputes"
+          curl -kfsS -b "$cookie_jar" "$base_url/api/disputes" |
+            jq -e --arg id "$transaction_id" 'any(.[]; .transactionId == $id and .status == "Submitted")'
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+      - name: Remove containers and test data
+        if: always()
+        run: docker compose down --volumes

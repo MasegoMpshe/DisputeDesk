@@ -1,0 +1,21 @@
+<ul>
+  @for (transaction of transactions(); track transaction.id) {
+    <li>
+      <a [routerLink]="['/transactions', transaction.id]">
+        <span class="row-text">
+          <strong>{{ transaction.description }}</strong>
+          @if (transaction.merchant || transaction.city) {
+            <span class="muted">
+              {{ transaction.merchant }}{{ transaction.merchant && transaction.city ? ' · ' : ''
+              }}{{ transaction.city }}
+            </span>
+          }
+          <time class="muted" [attr.datetime]="transaction.occurredAt">
+            {{ transaction.occurredAt | date: 'mediumDate' }}
+          </time>
+        </span>
+        <span class="amount">{{ transaction.amount | currency: transaction.currency }}</span>
+      </a>
+    </li>
+  }
+</ul>

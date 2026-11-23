@@ -1,0 +1,25 @@
+.detail-panel {
+  margin-top: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.5rem 1.5rem;
+  margin-bottom: 0;
+}
+
+dt {
+  font-weight: 600;
+}
+
+dd {
+  margin: 0;
+}
+
+.dispute-action {
+  display: inline-block;
+  margin-top: 1.25rem;
+  font-weight: 650;
+}

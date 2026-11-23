@@ -1,0 +1,35 @@
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li + li {
+  border-top: 1px solid var(--border);
+}
+
+li a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  color: inherit;
+  padding: 1rem clamp(0.875rem, 3vw, 1.5rem);
+  border-radius: 0.5rem;
+  text-decoration: none;
+}
+
+li a:hover {
+  background: var(--accent-light);
+}
+
+.row-text {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.amount {
+  color: var(--accent);
+  font-weight: 700;
+  flex-shrink: 0;
+}

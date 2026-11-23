@@ -1,0 +1,70 @@
+x-database-connection: &database-connection "Host=db;Port=5432;Database=disputedesk;Username=disputedesk;Password=${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: disputedesk
+      POSTGRES_USER: disputedesk
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}"
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "disputedesk", "-d", "disputedesk"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    volumes:
+      - postgres-data:/var/lib/postgresql
+
+  setup:
+    build:
+      context: .
+      dockerfile: DisputeDesk.Api/Dockerfile
+      target: setup
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__DisputeDesk: *database-connection
+      Database__Migrate: "true"
+      Database__SeedDemoData: "true"
+      Database__ProvisionDemoAccounts: "true"
+      DEMO_NALEDI_PASSWORD: "${DEMO_NALEDI_PASSWORD:?Set DEMO_NALEDI_PASSWORD in .env}"
+      DEMO_THABO_PASSWORD: "${DEMO_THABO_PASSWORD:?Set DEMO_THABO_PASSWORD in .env}"
+      HTTPS_CERT_PASSWORD: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
+    volumes:
+      - https-certificate:/https
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        if [ ! -s /https/disputedesk.pfx ]; then
+          dotnet dev-certs https --export-path /https/disputedesk.pfx --password "$$HTTPS_CERT_PASSWORD"
+        fi
+        chown "$$APP_UID" /https/disputedesk.pfx
+        chmod 600 /https/disputedesk.pfx
+        exec env \
+          "DemoAccounts__demo-naledi__Password=$$DEMO_NALEDI_PASSWORD" \
+          "DemoAccounts__demo-thabo__Password=$$DEMO_THABO_PASSWORD" \
+          dotnet DisputeDesk.Api.dll
+
+  app:
+    build:
+      context: .
+      dockerfile: DisputeDesk.Api/Dockerfile
+    depends_on:
+      setup:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_HTTP_PORTS: ""
+      ASPNETCORE_HTTPS_PORTS: "8443"
+      ASPNETCORE_Kestrel__Certificates__Default__Path: /https/disputedesk.pfx
+      ASPNETCORE_Kestrel__Certificates__Default__Password: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
+      ConnectionStrings__DisputeDesk: *database-connection
+      DemoTransactions__Enabled: "true"
+    ports:
+      - "127.0.0.1:8443:8443"
+    volumes:
+      - https-certificate:/https:ro
+
+volumes:
+  postgres-data:
+  https-certificate:

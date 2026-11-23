@@ -1,6 +1,8 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Security.Claims;
+using DisputeDesk.Application.Dashboard;
+using DisputeDesk.Application.Disputes;
 using DisputeDesk.Application.Transactions;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -22,6 +24,10 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
     private static readonly TransactionSummary ThaboTransaction =
         new(Guid.Parse("20000000-0000-4000-8000-000000000003"), "Fuel", 60m, "ZAR", DateTimeOffset.UnixEpoch);
 
+    private static readonly DisputeSummary NalediDispute =
+        new(Guid.Parse("30000000-0000-4000-8000-000000000001"), NalediTransaction.Id,
+            "Grocery", "DD-001", "Submitted", DateTimeOffset.UnixEpoch);
+
     private readonly WebApplicationFactory<Program> factory;
 
     public TransactionsAuthorizationTests(WebApplicationFactory<Program> factory)
@@ -33,6 +39,10 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
             {
                 services.Replace(ServiceDescriptor.Scoped<ISecurityStampValidator, TestSecurityStampValidator>());
                 services.Replace(ServiceDescriptor.Scoped<ITransactionReader, TestTransactionReader>());
+                services.Replace(ServiceDescriptor.Scoped<IDemoTransactionGenerator, DisabledDemoGenerator>());
+                services.Replace(ServiceDescriptor.Scoped<ICustomerDashboardReader, TestCustomerReader>());
+                services.Replace(ServiceDescriptor.Scoped<IDisputeReader, TestCustomerReader>());
+                services.Replace(ServiceDescriptor.Scoped<IDisputeWriter, TestDisputeWriter>());
             });
         });
     }
@@ -47,6 +57,10 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
 
         Assert.Equal(HttpStatusCode.Unauthorized, list.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, detail.StatusCode);
+        using var dashboard = await client.GetAsync("/api/dashboard");
+        using var disputes = await client.GetAsync("/api/disputes");
+        Assert.Equal(HttpStatusCode.Unauthorized, dashboard.StatusCode);
+        Assert.Equal(HttpStatusCode.Unauthorized, disputes.StatusCode);
     }
 
     [Fact]
@@ -70,6 +84,138 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
 
         Assert.Equal(NalediTransaction, owned);
         Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
+    }
+
+    [Fact]
+    public async Task DashboardUsesTheSignedInIdentity()
+    {
+        using var client = CreateClient("demo-naledi");
+
+        var summary = Assert.IsType<CustomerDashboard>(
+            await client.GetFromJsonAsync<CustomerDashboard>("/api/dashboard?identityUserId=demo-thabo"));
+
+        Assert.Equal(7, summary.TotalTransactionCount);
+        Assert.Equal(1, summary.TotalDisputes);
+        Assert.Equal(NalediTransaction, Assert.Single(summary.RecentTransactions));
+    }
+
+    [Fact]
+    public async Task DisputesUseTheSignedInIdentity()
+    {
+        using var owner = CreateClient("demo-naledi");
+        using var other = CreateClient("demo-thabo");
+
+        var owned = await owner.GetFromJsonAsync<DisputeSummary[]>("/api/disputes");
+        var excluded = await other.GetFromJsonAsync<DisputeSummary[]>("/api/disputes?identityUserId=demo-naledi");
+
+        Assert.Equal(NalediTransaction.Id, Assert.Single(owned!).TransactionId);
+        Assert.Empty(excluded!);
+    }
+
+    [Fact]
+    public async Task DisputeSubmissionReturnsCreatedWithReceiptLocation()
+    {
+        using var owner = CreateClient("demo-naledi");
+
+        using var response = await owner.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = NalediTransaction.Id,
+            reasonCode = "  UNRECOGNISED  ",
+            details = "  Check the receipt.  "
+        });
+
+        Assert.Equal(HttpStatusCode.Created, response.StatusCode);
+        var result = Assert.IsType<DisputeDetails>(await response.Content.ReadFromJsonAsync<DisputeDetails>());
+        Assert.Equal("/api/disputes/" + result.Summary.Id, response.Headers.Location?.AbsolutePath);
+        Assert.Equal("Unrecognised purchase", result.Reason);
+        Assert.Equal("Check the receipt.", result.Details);
+    }
+
+    [Fact]
+    public async Task DisputeSubmissionRejectsAnonymousInvalidAndForeignRequests()
+    {
+        using var anonymous = CreateClient();
+        using var owner = CreateClient("demo-naledi");
+
+        using var unsigned = await anonymous.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = NalediTransaction.Id,
+            reasonCode = "UNRECOGNISED"
+        });
+        using var invalid = await owner.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = NalediTransaction.Id,
+            reasonCode = "   "
+        });
+        using var foreign = await owner.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = ThaboTransaction.Id,
+            reasonCode = "UNRECOGNISED"
+        });
+
+        Assert.Equal(HttpStatusCode.Unauthorized, unsigned.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
+    }
+
+    [Fact]
+    public async Task DisputeSubmissionReturnsConflictForDuplicate()
+    {
+        using var owner = CreateClient("demo-naledi");
+
+        using var response = await owner.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = NalediTransaction.Id,
+            reasonCode = "DUPLICATE"
+        });
+
+        Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task ReceiptUsesTheSignedInIdentity()
+    {
+        using var owner = CreateClient("demo-naledi");
+        using var other = CreateClient("demo-thabo");
+        var url = $"/api/disputes/{NalediDispute.Id}";
+
+        var receipt = Assert.IsType<DisputeDetails>(await owner.GetFromJsonAsync<DisputeDetails>(url));
+        using var excluded = await other.GetAsync(url + "?identityUserId=demo-naledi");
+
+        Assert.Equal(NalediDispute, receipt.Summary);
+        Assert.Equal(HttpStatusCode.NotFound, excluded.StatusCode);
+    }
+
+    [Fact]
+    public async Task DisputeReasonLookupAndRequiredDetailsUseValidationResponses()
+    {
+        using var owner = CreateClient("demo-naledi");
+        var reasons = await owner.GetFromJsonAsync<DisputeReasonOption[]>("/api/disputes/reasons");
+        Assert.Equal("UNRECOGNISED", Assert.Single(reasons!).Code);
+
+        using var invalid = await owner.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = NalediTransaction.Id,
+            reasonCode = "UNKNOWN_CODE"
+        });
+        using var missing = await owner.PostAsJsonAsync("/api/disputes", new
+        {
+            transactionId = NalediTransaction.Id,
+            reasonCode = "OTHER"
+        });
+        Assert.Equal(HttpStatusCode.BadRequest, invalid.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, missing.StatusCode);
+    }
+
+    [Fact]
+    public async Task DemoGenerationIsHiddenWhenDisabled()
+    {
+        using var owner = CreateClient("demo-naledi");
+        var dashboard = await owner.GetFromJsonAsync<CustomerDashboard>("/api/dashboard");
+        using var response = await owner.PostAsJsonAsync("/api/transactions/demo", new { });
+
+        Assert.False(dashboard!.CanGenerateTransactions);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     private HttpClient CreateClient(string? identityUserId = null)
@@ -101,6 +247,53 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
     private sealed class TestSecurityStampValidator : ISecurityStampValidator
     {
         public Task ValidateAsync(CookieValidatePrincipalContext context) => Task.CompletedTask;
+    }
+
+    private sealed class TestCustomerReader : ICustomerDashboardReader, IDisputeReader
+    {
+        public Task<DisputeReasonOption[]> ListReasonsAsync(CancellationToken cancellationToken) =>
+            Task.FromResult<DisputeReasonOption[]>([new("UNRECOGNISED", "Unrecognised purchase", false)]);
+        public Task<CustomerDashboard> GetAsync(string identityUserId, CancellationToken cancellationToken) =>
+            Task.FromResult(identityUserId == "demo-naledi"
+                ? new CustomerDashboard(7, 1, [NalediTransaction])
+                : new CustomerDashboard(3, 0, [ThaboTransaction]));
+
+        public Task<DisputeSummary[]> ListAsync(string identityUserId, CancellationToken cancellationToken) =>
+            Task.FromResult<DisputeSummary[]>(identityUserId == "demo-naledi"
+                ? [NalediDispute]
+                : []);
+
+        public Task<DisputeDetails?> FindAsync(string identityUserId, Guid disputeId, CancellationToken cancellationToken) =>
+            Task.FromResult<DisputeDetails?>(identityUserId == "demo-naledi" && disputeId == NalediDispute.Id
+                ? new DisputeDetails(NalediDispute, "Unrecognised purchase", null)
+                : null);
+    }
+
+    private sealed class TestDisputeWriter : IDisputeWriter
+    {
+        public Task<DisputeSubmissionResult> SubmitAsync(
+            string identityUserId, Guid transactionId, string reasonCode, string? details, CancellationToken cancellationToken)
+        {
+            DisputeSubmissionResult result = (identityUserId, transactionId, reasonCode) switch
+            {
+                ("demo-naledi", var id, "DUPLICATE") when id == NalediTransaction.Id =>
+                    new DisputeSubmissionResult.Duplicate(),
+                ("demo-naledi", var id, "UNRECOGNISED") when id == NalediTransaction.Id =>
+                    new DisputeSubmissionResult.Created(new DisputeDetails(NalediDispute, "Unrecognised purchase", details)),
+                ("demo-naledi", var id, "OTHER") when id == NalediTransaction.Id && string.IsNullOrWhiteSpace(details) =>
+                    new DisputeSubmissionResult.DetailsRequired(),
+                ("demo-naledi", var id, _) when id == NalediTransaction.Id =>
+                    new DisputeSubmissionResult.InvalidReason(),
+                _ => new DisputeSubmissionResult.TransactionNotFound()
+            };
+            return Task.FromResult(result);
+        }
+    }
+
+    private sealed class DisabledDemoGenerator : IDemoTransactionGenerator
+    {
+        public Task<int> GenerateAsync(string identityUserId, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("A disabled demo generator must not be called.");
     }
 
     private sealed class TestTransactionReader : ITransactionReader

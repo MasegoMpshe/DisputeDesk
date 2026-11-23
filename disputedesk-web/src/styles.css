@@ -1,0 +1,180 @@
+:root {
+  color-scheme: light;
+  --ink: #173049;
+  --muted: #5d737e;
+  --accent: #004870;
+  --accent-hover: #003855;
+  --accent-light: #e8f6fc;
+  --sky: #009de0;
+  --red: #e61415;
+  --error: #a31e32;
+  --border: #dde4e9;
+  --control-border: #8297a4;
+  --surface: #fff;
+  --canvas: #f5f5f5;
+  background: var(--canvas);
+  color: var(--ink);
+  font:
+    1rem/1.5 system-ui,
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app-header {
+  background: linear-gradient(105deg, #00679b 0 42%, #008cd9 82%, var(--sky) 100%);
+  border-bottom: 1px solid #00679b;
+  box-shadow: 0 2px 8px #0048701a;
+}
+
+.header-inner,
+.app-main {
+  width: min(100% - 2rem, 60rem);
+  margin-inline: auto;
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding-block: 0.75rem;
+}
+
+.brand {
+  color: var(--surface);
+  font-size: clamp(1.2rem, 4vw, 1.5rem);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+}
+
+.assessment {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.125rem 0.625rem 0.125rem 0.25rem;
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--accent);
+  font-size: 0.8125rem;
+  font-weight: 650;
+  line-height: 1.2;
+}
+
+/* Frame the supplied app mark without altering the source image. */
+.assessment-logo {
+  position: relative;
+  display: block;
+  flex: 0 0 2.5rem;
+  aspect-ratio: 1;
+  overflow: hidden;
+}
+
+.assessment-logo img {
+  position: absolute;
+  display: block;
+  width: 450%;
+  height: auto;
+  left: -175%;
+  top: -437.5%;
+}
+
+.app-main {
+  padding-block: clamp(1.75rem, 4vw, 3rem) 3rem;
+}
+
+h1 {
+  margin: 0;
+  color: var(--accent);
+  letter-spacing: -0.04em;
+  font-size: clamp(1.875rem, 5vw, 2.75rem);
+  line-height: 1.1;
+}
+
+a {
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.9rem;
+  box-shadow: 0 0.45rem 1.5rem #1945640b;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.error {
+  color: var(--error);
+}
+
+button,
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.625rem;
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  color: white;
+  font: inherit;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.button-link {
+  text-decoration: none;
+}
+
+button:hover:not(:disabled),
+.button-link:hover {
+  background: var(--accent-hover);
+  color: white;
+}
+
+button.secondary {
+  background: var(--surface);
+  border-color: var(--control-border);
+  color: var(--accent);
+}
+
+button.secondary:hover:not(:disabled) {
+  background: var(--accent-light);
+  color: var(--accent-hover);
+}
+
+button:disabled {
+  opacity: 0.65;
+  cursor: default;
+}
+
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.status-label {
+  display: inline-block;
+  width: fit-content;
+  padding: 0.15rem 0.575rem;
+  border-radius: 0.4rem;
+  background: var(--accent-light);
+  color: var(--accent-hover);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}

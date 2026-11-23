@@ -11,6 +11,7 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
+    public DbSet<DisputeReason> DisputeReasons => Set<DisputeReason>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -30,6 +31,8 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
         transactions.Property(transaction => transaction.Id).HasColumnName("id");
         transactions.Property(transaction => transaction.CustomerId).HasColumnName("customer_id");
         transactions.Property(transaction => transaction.Description).HasColumnName("description");
+        transactions.Property(transaction => transaction.Merchant).HasColumnName("merchant").HasMaxLength(120);
+        transactions.Property(transaction => transaction.City).HasColumnName("city").HasMaxLength(100);
         transactions.Property(transaction => transaction.Amount).HasColumnName("amount").HasPrecision(18, 2);
         transactions.Property(transaction => transaction.Currency).HasColumnName("currency").HasMaxLength(3);
         transactions.Property(transaction => transaction.OccurredAt).HasColumnName("occurred_at");
@@ -38,7 +41,27 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
             .HasForeignKey(transaction => transaction.CustomerId)
             .OnDelete(DeleteBehavior.Restrict);
 
+        var reasons = modelBuilder.Entity<DisputeReason>();
+        reasons.ToTable("dispute_reasons");
+        reasons.HasKey(reason => reason.Code);
+        reasons.Property(reason => reason.Code).HasColumnName("code").HasMaxLength(40);
+        reasons.Property(reason => reason.Label).HasColumnName("label").HasMaxLength(120);
+        reasons.Property(reason => reason.SortOrder).HasColumnName("sort_order");
+        reasons.Property(reason => reason.IsActive).HasColumnName("is_active");
+        reasons.Property(reason => reason.RequiresDetails).HasColumnName("requires_details");
+        reasons.HasData(
+            new DisputeReason { Code = "UNRECOGNISED", Label = "I don’t recognise this transaction", SortOrder = 10 },
+            new DisputeReason { Code = "DUPLICATE", Label = "I was charged more than once", SortOrder = 20 },
+            new DisputeReason { Code = "INCORRECT_AMOUNT", Label = "I was charged the wrong amount", SortOrder = 30 },
+            new DisputeReason { Code = "REFUND_MISSING", Label = "I didn’t receive my refund", SortOrder = 40 },
+            new DisputeReason { Code = "NOT_RECEIVED", Label = "I didn’t receive the goods or services", SortOrder = 50 },
+            new DisputeReason { Code = "OTHER", Label = "Other", SortOrder = 60, RequiresDetails = true });
+
         var disputes = modelBuilder.Entity<Dispute>();
+        disputes.Property(dispute => dispute.ReasonCode).HasColumnName("reason_code").HasMaxLength(40);
+        disputes.HasOne<DisputeReason>().WithMany()
+            .HasForeignKey(dispute => dispute.ReasonCode)
+            .OnDelete(DeleteBehavior.Restrict);
         disputes.ToTable("disputes");
         disputes.HasKey(dispute => dispute.Id);
         disputes.Property(dispute => dispute.Id).HasColumnName("id");

@@ -1,0 +1,33 @@
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-block: 0.75rem 1.25rem;
+}
+
+.state,
+li {
+  padding: 1rem 1.25rem;
+  margin: 0;
+}
+
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: grid;
+  gap: 0.125rem;
+}
+
+li + li {
+  border-top: 1px solid var(--border);
+}
+
+.reference-number {
+  overflow-wrap: anywhere;
+}

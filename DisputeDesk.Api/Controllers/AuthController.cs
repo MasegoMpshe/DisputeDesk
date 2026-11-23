@@ -1,7 +1,9 @@
+using System.Text.Json;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace DisputeDesk.Api.Controllers;
 
@@ -22,7 +24,8 @@ public sealed class AuthController(SignInManager<IdentityUser> signInManager) : 
 
     [Authorize]
     [HttpPost("logout")]
-    public async Task<IActionResult> Logout()
+    [Consumes("application/json")]
+    public async Task<IActionResult> Logout([FromBody(EmptyBodyBehavior = EmptyBodyBehavior.Allow)] JsonElement _ = default)
     {
         if (!Request.HasJsonContentType())
         {
