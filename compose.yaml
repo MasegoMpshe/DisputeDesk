@@ -58,6 +58,7 @@ services:
     environment:
       ASPNETCORE_HTTP_PORTS: ""
       ASPNETCORE_HTTPS_PORTS: "8443"
+      DISPUTEDESK_HEALTH_URL: "https://localhost:8443/health/ready"
       ASPNETCORE_Kestrel__Certificates__Default__Path: /https/disputedesk.pfx
       ASPNETCORE_Kestrel__Certificates__Default__Password: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
       ConnectionStrings__DisputeDesk: *database-connection

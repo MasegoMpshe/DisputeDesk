@@ -4,6 +4,11 @@ public sealed class Dispute
 {
     public static readonly TimeSpan FilingWindow = TimeSpan.FromDays(120);
 
+    public static DateTimeOffset FilingDeadline(DateTimeOffset occurredAt) => occurredAt.ToUniversalTime() + FilingWindow;
+
+    public static bool IsFilingWindowExpired(DateTimeOffset occurredAt, DateTimeOffset now) =>
+        now > FilingDeadline(occurredAt);
+
     private Dispute() { }
 
     public Guid Id { get; private init; }
@@ -18,7 +23,7 @@ public sealed class Dispute
     public static (Dispute? Dispute, DisputeFilingError? Error) Raise(
         Transaction transaction, DisputeReason? reason, string? details, DateTimeOffset now)
     {
-        if (now - transaction.OccurredAt > FilingWindow)
+        if (IsFilingWindowExpired(transaction.OccurredAt, now))
         {
             return (null, DisputeFilingError.FilingWindowExpired);
         }

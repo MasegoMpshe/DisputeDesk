@@ -34,15 +34,28 @@ sign_out() {
 }
 
 # Docker may publish the port before Kestrel is ready to negotiate TLS.
+test "$(curl -kfsS --retry 20 --retry-all-errors --retry-delay 2 --max-time 5 "$base_url/health/ready")" = Healthy
+test "$(curl -kfsS --max-time 5 "$base_url/health/live")" = Healthy
 dashboard="$(curl -kfsS --retry 20 --retry-all-errors --retry-delay 2 --max-time 5 "$base_url/dashboard")"
 grep -q '<app-root>' <<< "$dashboard"
 test "$(curl -ksS -o /dev/null -w '%{http_code}' "$base_url/api/unknown")" = 404
 
 printf '%s\n' 'Submitting a dispute as the customer'
 sign_in "$customer" demo-naledi DEMO_NALEDI_PASSWORD
-request "$customer" "$base_url/api/auth/session" | jq -e '.role == "Customer"' >/dev/null
-transaction_id="$(request "$customer" "$base_url/api/transactions" | jq -er '.[0].id')"
+request "$customer" "$base_url/api/auth/session" | jq -e '.role == "Customer" and .displayName == "Naledi Mokoena"' >/dev/null
+expired_id="$(request "$customer" "$base_url/api/transactions/page?search=Bookshop&filing=Closed" |
+  jq -er '.items[] | select(.description == "Bookshop purchase" and .filingWindowExpired and .disputeDeadline != null) | .id')"
+transaction_id="$(request "$customer" "$base_url/api/transactions/page?filing=Open&pageSize=1" | jq -er '.items[0].id')"
 reason_code="$(request "$customer" "$base_url/api/disputes/reasons" | jq -er '.[0].code')"
+printf '%s\n' 'Verifying the expired demo transaction is rejected'
+expired_response="$(
+  jq -nc --arg id "$expired_id" --arg reason "$reason_code" \
+    '{transactionId:$id, reasonCode:$reason, details:"Expired transaction check"}' |
+    curl -ksS --max-time 15 --cookie "$customer" -H 'Content-Type: application/json' \
+      --data @- --write-out '\n%{http_code}' "$base_url/api/disputes"
+)"
+test "${expired_response##*$'\n'}" = 400
+jq -e '.code == "filingWindowExpired"' <<< "${expired_response%$'\n'*}" >/dev/null
 dispute_id="$(jq -nc --arg id "$transaction_id" --arg reason "$reason_code" \
   '{transactionId:$id, reasonCode:$reason, details:"Compose smoke test"}' |
   request "$customer" -H 'Content-Type: application/json' --data @- "$base_url/api/disputes" |

@@ -15,6 +15,18 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
     : IClassFixture<PostgreSqlDisputeFixture>
 {
     [PostgreSqlFact]
+    public async Task ReadinessSucceedsWithMigratedPostgreSql()
+    {
+        using var client = fixture.App.CreateClient(new WebApplicationFactoryClientOptions
+        {
+            BaseAddress = new Uri("https://localhost")
+        });
+        using var response = await client.GetAsync("/health/ready");
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+    }
+
+    [PostgreSqlFact]
     public async Task ReviewerDecisionUpdatesTheCustomerTimelineAndNotifications()
     {
         using var customer = await SignInAsync(CustomerUser);
@@ -22,10 +34,24 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         using var other = await SignInAsync(OtherUser);
         var session = await reviewer.GetFromJsonAsync<JsonElement>("/api/auth/session");
         Assert.Equal("Reviewer", session.GetProperty("role").GetString());
+        Assert.Equal(ReviewerUser, session.GetProperty("displayName").GetString());
+        var customerSession = await customer.GetFromJsonAsync<JsonElement>("/api/auth/session");
+        Assert.Equal("Customer", customerSession.GetProperty("displayName").GetString());
 
-        using var early = await SubmitAsync(customer, OldTransaction);
-        Assert.Equal(HttpStatusCode.BadRequest, early.StatusCode);
-        Assert.Contains("120 days", await early.Content.ReadAsStringAsync());
+        var transactions = await customer.GetFromJsonAsync<TransactionSummary[]>("/api/transactions");
+        var boundary = Assert.Single(transactions!, item => item.Id == BoundaryTransaction);
+        Assert.Equal(Now, boundary.DisputeDeadline);
+        Assert.False(boundary.FilingWindowExpired);
+
+        var expired = await customer.GetFromJsonAsync<TransactionSummary>($"/api/transactions/{OldTransaction}");
+        Assert.True(expired!.FilingWindowExpired);
+        Assert.Equal(Now.AddSeconds(-1), expired.DisputeDeadline);
+        Assert.Equal(expired, Assert.Single(transactions!, item => item.Id == OldTransaction));
+        using var late = await SubmitAsync(customer, OldTransaction);
+        Assert.Equal(HttpStatusCode.BadRequest, late.StatusCode);
+        var error = await late.Content.ReadFromJsonAsync<JsonElement>();
+        Assert.Equal("filingWindowExpired", error.GetProperty("code").GetString());
+        Assert.Contains("120 days", error.GetProperty("errors").GetProperty("TransactionId")[0].GetString());
         using var foreign = await SubmitAsync(customer, OtherTransaction);
         Assert.Equal(HttpStatusCode.NotFound, foreign.StatusCode);
 
@@ -182,6 +208,27 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         var after = (await nextSession.GetFromJsonAsync<TransactionSummary[]>("/api/transactions"))!;
         var newRows = after.Where(row => before.All(existing => existing.Id != row.Id)).ToArray();
         Assert.Equal(5, newRows.Length);
+        Assert.Equal(2, newRows.Count(item => item.FilingWindowExpired));
+        var filtered = (await nextSession.GetFromJsonAsync<TransactionPage>(
+            "/api/transactions/page?filing=Closed&search=cApE%20tOwN&from=2026-07-21&to=2026-07-21"))!;
+        var match = Assert.Single(filtered.Items);
+        Assert.Equal("Cape Town", match.City);
+        Assert.True(match.FilingWindowExpired);
+        Assert.Equal(1, filtered.TotalCount);
+        Assert.Empty((await other.GetFromJsonAsync<TransactionPage>(
+            "/api/transactions/page?search=Cape%20Town"))!.Items);
+
+        var first = (await nextSession.GetFromJsonAsync<TransactionPage>(
+            "/api/transactions/page?filing=Closed&sort=Oldest&pageSize=1&page=1"))!;
+        var second = (await nextSession.GetFromJsonAsync<TransactionPage>(
+            "/api/transactions/page?filing=Closed&sort=Oldest&pageSize=1&page=2"))!;
+        Assert.Equal(3, first.TotalCount);
+        Assert.Equal(2, second.Page);
+        Assert.Equal("Durban", Assert.Single(first.Items).City);
+        Assert.Equal(match.Id, Assert.Single(second.Items).Id);
+        var amounts = (await nextSession.GetFromJsonAsync<TransactionPage>(
+            "/api/transactions/page?sort=AmountHigh"))!.Items.Select(item => item.Amount).ToArray();
+        Assert.Equal(amounts.OrderDescending(), amounts);
         Assert.Equal(before.Length + 5, after.Length);
         Assert.Equal(beforeOther.Select(item => item.Id),
             (await other.GetFromJsonAsync<TransactionSummary[]>("/api/transactions"))!.Select(item => item.Id));

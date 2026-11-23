@@ -17,7 +17,8 @@ public static class DemoData
             ('20000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 'Grocery purchase', 385.49, 'ZAR', (CURRENT_TIMESTAMP - INTERVAL '2 days'), 'Corner Basket', 'Johannesburg'),
             ('20000000-0000-4000-8000-000000000002', '10000000-0000-4000-8000-000000000001', 'Online retail purchase', 749.00, 'ZAR', (CURRENT_TIMESTAMP - INTERVAL '4 days'), 'Market Lane Online', NULL),
             ('20000000-0000-4000-8000-000000000003', '10000000-0000-4000-8000-000000000002', 'Fuel purchase', 620.00, 'ZAR', (CURRENT_TIMESTAMP - INTERVAL '3 days'), 'Highway Fuel', 'Pretoria'),
-            ('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000002', 'Mobile airtime purchase', 120.00, 'ZAR', (CURRENT_TIMESTAMP - INTERVAL '5 days'), 'Connect Mobile', NULL)
+            ('20000000-0000-4000-8000-000000000004', '10000000-0000-4000-8000-000000000002', 'Mobile airtime purchase', 120.00, 'ZAR', (CURRENT_TIMESTAMP - INTERVAL '5 days'), 'Connect Mobile', NULL),
+            ('20000000-0000-4000-8000-000000000005', '10000000-0000-4000-8000-000000000001', 'Bookshop purchase', 210.00, 'ZAR', (CURRENT_TIMESTAMP - INTERVAL '121 days'), 'Page Corner', 'Johannesburg')
         ON CONFLICT (id) DO NOTHING;
         """;
 

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -56,11 +57,34 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
         using var detail = await client.GetAsync($"/api/transactions/{NalediTransaction.Id}");
 
         Assert.Equal(HttpStatusCode.Unauthorized, list.StatusCode);
+        Assert.Equal("application/problem+json", list.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(401, (await list.Content.ReadFromJsonAsync<ProblemDetails>())?.Status);
         Assert.Equal(HttpStatusCode.Unauthorized, detail.StatusCode);
         using var dashboard = await client.GetAsync("/api/dashboard");
         using var disputes = await client.GetAsync("/api/disputes");
         Assert.Equal(HttpStatusCode.Unauthorized, dashboard.StatusCode);
         Assert.Equal(HttpStatusCode.Unauthorized, disputes.StatusCode);
+    }
+
+    [Fact]
+    public async Task ApiErrorsUseProblemDetailsWithoutExposingExceptionDetails()
+    {
+        using var client = CreateClient("test-backend-failure");
+        using var response = await client.GetAsync("/api/transactions");
+
+        Assert.Equal(HttpStatusCode.InternalServerError, response.StatusCode);
+        Assert.Equal("application/problem+json", response.Content.Headers.ContentType?.MediaType);
+        Assert.Equal(500, (await response.Content.ReadFromJsonAsync<ProblemDetails>())?.Status);
+        Assert.DoesNotContain("Internal test marker", await response.Content.ReadAsStringAsync());
+    }
+
+    [Fact]
+    public async Task AuthenticatedRequestsWithBlankIdentityAreForbidden()
+    {
+        using var client = CreateClient(" ");
+        using var response = await client.GetAsync("/api/auth/session");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
     }
 
     [Fact]
@@ -71,7 +95,7 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
         var transactions = await client.GetFromJsonAsync<TransactionSummary[]>(
             "/api/transactions?identityUserId=demo-thabo");
 
-        Assert.Equal(NalediTransaction, Assert.Single(transactions!));
+        Assert.Equal(NalediTransaction with { FilingWindowExpired = true }, Assert.Single(transactions!));
     }
 
     [Fact]
@@ -82,7 +106,7 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
         var owned = await client.GetFromJsonAsync<TransactionSummary>($"/api/transactions/{NalediTransaction.Id}");
         using var other = await client.GetAsync($"/api/transactions/{ThaboTransaction.Id}");
 
-        Assert.Equal(NalediTransaction, owned);
+        Assert.Equal(NalediTransaction with { FilingWindowExpired = true }, owned);
         Assert.Equal(HttpStatusCode.NotFound, other.StatusCode);
     }
 
@@ -96,7 +120,7 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
 
         Assert.Equal(7, summary.TotalTransactionCount);
         Assert.Equal(1, summary.TotalDisputes);
-        Assert.Equal(NalediTransaction, Assert.Single(summary.RecentTransactions));
+        Assert.Equal(NalediTransaction with { FilingWindowExpired = true }, Assert.Single(summary.RecentTransactions));
     }
 
     [Fact]
@@ -218,6 +242,18 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Fact]
+    public async Task TransactionPagingRejectsInvalidFilters()
+    {
+        using var owner = CreateClient("demo-naledi");
+        using var invalidRange = await owner.GetAsync("/api/transactions/page?from=2026-11-23&to=2026-11-22");
+        using var invalidSize = await owner.GetAsync("/api/transactions/page?pageSize=51");
+        using var invalidSort = await owner.GetAsync("/api/transactions/page?sort=99");
+        Assert.Equal(HttpStatusCode.BadRequest, invalidRange.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidSize.StatusCode);
+        Assert.Equal(HttpStatusCode.BadRequest, invalidSort.StatusCode);
+    }
+
     private HttpClient CreateClient(string? identityUserId = null)
     {
         var client = factory.CreateClient(new WebApplicationFactoryClientOptions
@@ -299,7 +335,17 @@ public sealed class TransactionsAuthorizationTests : IClassFixture<WebApplicatio
     private sealed class TestTransactionReader : ITransactionReader
     {
         public Task<TransactionSummary[]> ListAsync(string identityUserId, CancellationToken cancellationToken) =>
-            Task.FromResult(identityUserId == "demo-naledi" ? new[] { NalediTransaction } : new[] { ThaboTransaction });
+            identityUserId == "test-backend-failure"
+                ? throw new InvalidOperationException("Internal test marker")
+                : Task.FromResult(identityUserId == "demo-naledi" ? new[] { NalediTransaction } : new[] { ThaboTransaction });
+
+        public async Task<TransactionPage> PageAsync(string identityUserId, TransactionFilter filter,
+            DateTimeOffset now, CancellationToken cancellationToken)
+        {
+            var items = await ListAsync(identityUserId, cancellationToken);
+            return new TransactionPage(items.Select(item => item.WithFilingWindowAt(now)).ToArray(),
+                items.Length, 1, filter.PageSize);
+        }
 
         public async Task<TransactionSummary?> FindAsync(
             string identityUserId, Guid transactionId, CancellationToken cancellationToken) =>

@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using DisputeDesk.Application.Disputes;
@@ -48,16 +47,13 @@ public sealed class ReviewerDisputesController(IReviewerDisputeReader disputes, 
         Guid id, DisputeStatus status, string? note, CancellationToken cancellationToken)
     {
         var result = await workflow.ReviewAsync(
-            User.FindFirstValue(ClaimTypes.NameIdentifier)!, id, status, note, cancellationToken);
+            DisputeAccess.UserId(User), id, status, note, cancellationToken);
         return result switch
         {
             DisputeTransitionResult.Updated => NoContent(),
             DisputeTransitionResult.NotFound => NotFound(),
-            _ => Conflict(new ProblemDetails
-            {
-                Status = StatusCodes.Status409Conflict,
-                Title = "This dispute cannot move to the requested status."
-            })
+            _ => Problem(statusCode: StatusCodes.Status409Conflict,
+                title: "This dispute cannot move to the requested status.")
         };
     }
 

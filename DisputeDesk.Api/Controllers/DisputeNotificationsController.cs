@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DisputeDesk.Application.Disputes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,11 +12,11 @@ public sealed class DisputeNotificationsController(IDisputeNotifications notific
 {
     [HttpGet]
     public Task<DisputeNotificationItem[]> List(CancellationToken cancellationToken) =>
-        notifications.ListAsync(User.FindFirstValue(ClaimTypes.NameIdentifier)!, cancellationToken);
+        notifications.ListAsync(DisputeAccess.UserId(User), cancellationToken);
 
     [HttpPut("{id:guid}/read")]
     public async Task<IActionResult> MarkRead(Guid id, CancellationToken cancellationToken) =>
-        await notifications.MarkReadAsync(User.FindFirstValue(ClaimTypes.NameIdentifier)!, id, cancellationToken)
+        await notifications.MarkReadAsync(DisputeAccess.UserId(User), id, cancellationToken)
             ? NoContent()
             : NotFound();
 }

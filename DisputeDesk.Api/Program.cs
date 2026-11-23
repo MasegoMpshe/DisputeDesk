@@ -1,7 +1,9 @@
-using System.Security.Claims;
 using DisputeDesk.Application.Dashboard;
 using DisputeDesk.Application.Disputes;
 using DisputeDesk.Api;
+using DisputeDesk.Api.Health;
+using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using DisputeDesk.Application.Transactions;
 using DisputeDesk.Infrastructure;
 using Microsoft.AspNetCore.Identity;
@@ -38,11 +40,13 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.ExpireTimeSpan = TimeSpan.FromMinutes(30);
 });
 builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(DisputeAccess.SignedIn, policy => policy.RequireAuthenticatedUser()
+        .RequireAssertion(context => DisputeAccess.HasUserId(context.User)))
     .AddPolicy(DisputeAccess.Customer, policy => policy.RequireAuthenticatedUser()
-        .RequireClaim(ClaimTypes.NameIdentifier)
+        .RequireAssertion(context => DisputeAccess.HasUserId(context.User))
         .RequireAssertion(context => !context.User.IsInRole(DisputeAccess.Reviewer)))
     .AddPolicy(DisputeAccess.Reviewer, policy => policy.RequireAuthenticatedUser()
-        .RequireClaim(ClaimTypes.NameIdentifier)
+        .RequireAssertion(context => DisputeAccess.HasUserId(context.User))
         .RequireRole(DisputeAccess.Reviewer));
 builder.Services.AddSingleton(TimeProvider.System);
 builder.Services.AddScoped<ProvisionDemoAccounts>();
@@ -57,6 +61,9 @@ builder.Services.AddScoped<IDisputeWriter>(services => services.GetRequiredServi
 builder.Services.AddScoped<IDisputeNotifications, DisputeNotificationStore>();
 builder.Services.Configure<DemoTransactionOptions>(builder.Configuration.GetSection(DemoTransactionOptions.SectionName));
 builder.Services.AddScoped<IDemoTransactionGenerator, DemoTransactionGenerator>();
+builder.Services.AddProblemDetails();
+builder.Services.AddHealthChecks()
+    .AddCheck<PostgreSqlReadinessCheck>("postgresql", tags: ["ready"], timeout: TimeSpan.FromSeconds(3));
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
@@ -86,6 +93,14 @@ if (migrateDatabase || provisionDemoAccounts)
     return;
 }
 
+app.UseExceptionHandler(new ExceptionHandlerOptions
+{
+    StatusCodeSelector = exception => exception is BadHttpRequestException badRequest
+        ? badRequest.StatusCode
+        : StatusCodes.Status500InternalServerError
+});
+app.UseWhen(context => context.Request.Path.StartsWithSegments("/api"),
+    api => api.UseStatusCodePages());
 app.UseHttpsRedirection();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -103,6 +118,11 @@ if (app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions
+{
+    Predicate = registration => registration.Tags.Contains("ready")
+}).AllowAnonymous();
 app.MapFallback("/api/{**path}", () => Results.NotFound());
 app.MapFallbackToFile("index.html");
 

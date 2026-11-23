@@ -13,11 +13,15 @@ public sealed class DisputeRulesTests
     [Fact]
     public void FilingWindowIncludesExactly120Days()
     {
-        var (dispute, error) = Dispute.Raise(TransactionAt(Now.AddDays(-120)), Other, "  Explanation  ", Now);
+        var occurredAt = Now.AddDays(-120).ToOffset(TimeSpan.FromHours(2));
+        Assert.Equal(Now, Dispute.FilingDeadline(occurredAt));
+        Assert.Equal(TimeSpan.Zero, Dispute.FilingDeadline(occurredAt).Offset);
+        Assert.False(Dispute.IsFilingWindowExpired(occurredAt, Now.AddTicks(-1)));
+        var (dispute, error) = Dispute.Raise(TransactionAt(occurredAt), Other, "  Explanation  ", Now);
         Assert.Null(error);
         Assert.Equal("Explanation", Assert.IsType<Dispute>(dispute).Details);
         Assert.Equal(DisputeFilingError.FilingWindowExpired,
-            Dispute.Raise(TransactionAt(Now.AddDays(-120).AddTicks(-1)), Other, "Explanation", Now).Error);
+            Dispute.Raise(TransactionAt(occurredAt), Other, "Explanation", Now.AddTicks(1)).Error);
     }
 
     [Fact]
