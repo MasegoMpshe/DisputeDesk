@@ -22,10 +22,10 @@ If Docker is already running in Linux container mode, skip to [Start the demo](#
 
 ### Start the demo
 
-1. Clone the branch containing the full application and open its repository folder. While packaging is under review, that branch is `feature/angular-frontend`. The GitHub account you use must have access to this private repository.
+1. Clone the public repository and open its folder. The default branch, `main`, contains the complete application.
 
    ```powershell
-   git clone --branch feature/angular-frontend https://github.com/MasegoMpshe/DisputeDesk.git
+   git clone https://github.com/MasegoMpshe/DisputeDesk.git
    Set-Location DisputeDesk
    ```
 2. Copy `.env.example` to `.env` using `Copy-Item .env.example .env` in PowerShell or `cp .env.example .env` in Bash. The example values are disposable credentials for this local demo. To customize them before first startup, use an alphanumeric PostgreSQL password and set each demo password to at least six characters with an uppercase letter, a lowercase letter, a number, and a symbol.
