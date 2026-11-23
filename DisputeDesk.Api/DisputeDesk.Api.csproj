@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="DisputeDesk.Tests" />
     <ProjectReference Include="..\DisputeDesk.Application\DisputeDesk.Application.csproj" />
     <ProjectReference Include="..\DisputeDesk.Infrastructure\DisputeDesk.Infrastructure.csproj" />
   </ItemGroup>

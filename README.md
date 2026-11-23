@@ -38,7 +38,16 @@ If Docker is already running in Linux container mode, skip to [Start the demo](#
 4. Open [https://localhost:8443](https://localhost:8443). Compose generates a self-signed development certificate, so your browser may ask you to trust it or continue to this local address. The API and Angular UI share this HTTPS origin.
 5. Sign in as `demo-naledi` with `DEMO_NALEDI_PASSWORD` from your `.env` file, or as `demo-thabo` with `DEMO_THABO_PASSWORD`.
 
-The optional `demo-reviewer` account is provisioned when `DEMO_REVIEWER_PASSWORD` is set in `.env`. If you are reusing an older `.env`, copy that entry from `.env.example`. Sign in as `demo-reviewer` with that password to open the review queue.
+The optional `demo-reviewer` account is provisioned when `DEMO_REVIEWER_PASSWORD` is set in `.env`. If you are reusing an older `.env`, copy that entry from `.env.example`. Sign in as `demo-reviewer` with the password value without the surrounding quotes.
+
+If reviewer sign-in fails after updating an existing Docker checkout, rerun the one-time setup from the repository root.
+
+```powershell
+docker compose run --build --rm setup
+docker compose up --build -d
+```
+
+Setup synchronizes the existing demo reviewer's password with `.env` and clears any reviewer lockout. The existing PostgreSQL volume and saved disputes are preserved.
 
 To build just the application image, run `docker build -f DisputeDesk.Api/Dockerfile -t disputedesk .` from the repository root. Use Compose for the accompanying database, HTTPS configuration, and demo initialization.
 
@@ -80,6 +89,8 @@ The commands below are for PowerShell 7.2 or later. Run them from the repository
    $env:ASPNETCORE_ENVIRONMENT = 'Development'
    dotnet run --project .\DisputeDesk.Api --no-launch-profile -- --Database:Migrate=true --Database:SeedDemoData=true --Database:ProvisionDemoAccounts=true
    ```
+
+   For an existing development database, rerun this step after updating the reviewer password in .NET User Secrets. The API uses User Secrets when launched directly from Visual Studio.
 
 4. Start the API in this terminal. Swagger UI is at [https://localhost:7051/swagger](https://localhost:7051/swagger) in Development.
 
