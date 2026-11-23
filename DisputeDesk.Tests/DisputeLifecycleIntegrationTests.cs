@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using DisputeDesk.Application.Dashboard;
 using DisputeDesk.Application.Disputes;
+using DisputeDesk.Application.Transactions;
 using DisputeDesk.Domain;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.Extensions.DependencyInjection;
@@ -63,6 +65,13 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         Assert.Equal(new[] { "Submitted", "Under review", "Approved" }, receipt!.Timeline.Select(item => item.Status));
         Assert.Equal("Customer claim upheld.", receipt.Timeline.Last().Note);
         Assert.Equal(42.50m, receipt.Summary.Amount);
+        var dashboard = (await customer.GetFromJsonAsync<CustomerDashboard>("/api/dashboard"))!;
+        Assert.Equal(Enum.GetValues<DisputeStatus>().Length, dashboard.DisputesByStatus.Count);
+        Assert.Equal(1, dashboard.DisputesByStatus[DisputeStatus.Approved]);
+        Assert.Equal(0, dashboard.DisputesByStatus[DisputeStatus.UnderReview]);
+        Assert.Equal(dashboard.TotalDisputes, dashboard.DisputesByStatus.Values.Sum());
+        var otherDashboard = (await other.GetFromJsonAsync<CustomerDashboard>("/api/dashboard"))!;
+        Assert.Equal(0, otherDashboard.DisputesByStatus[DisputeStatus.Approved]);
 
         var matching = await customer.GetFromJsonAsync<DisputeSummary[]>("/api/disputes?status=Approved&from=2026-11-23");
         Assert.Equal(id, Assert.Single(matching!).Id);
@@ -156,6 +165,28 @@ public sealed class DisputeLifecycleIntegrationTests(PostgreSqlDisputeFixture fi
         Assert.Equal(HttpStatusCode.NoContent, rejected.StatusCode);
         var closed = await customer.GetFromJsonAsync<DisputeDetails>($"/api/disputes/{LegacyDispute}");
         Assert.Equal("Rejected", closed!.Summary.Status);
+    }
+
+    [PostgreSqlFact]
+    public async Task GeneratedTransactionsPersistAcrossSessionsAndRemainCustomerScoped()
+    {
+        using var customer = await SignInAsync(CustomerUser);
+        using var other = await SignInAsync(OtherUser);
+        var before = (await customer.GetFromJsonAsync<TransactionSummary[]>("/api/transactions"))!;
+        var beforeOther = (await other.GetFromJsonAsync<TransactionSummary[]>("/api/transactions"))!;
+        using var generated = await customer.PostAsJsonAsync("/api/transactions/demo", new { });
+        Assert.Equal(HttpStatusCode.OK, generated.StatusCode);
+        Assert.Equal(5, await generated.Content.ReadFromJsonAsync<int>());
+
+        using var nextSession = await SignInAsync(CustomerUser);
+        var after = (await nextSession.GetFromJsonAsync<TransactionSummary[]>("/api/transactions"))!;
+        var newRows = after.Where(row => before.All(existing => existing.Id != row.Id)).ToArray();
+        Assert.Equal(5, newRows.Length);
+        Assert.Equal(before.Length + 5, after.Length);
+        Assert.Equal(beforeOther.Select(item => item.Id),
+            (await other.GetFromJsonAsync<TransactionSummary[]>("/api/transactions"))!.Select(item => item.Id));
+        var dashboard = (await nextSession.GetFromJsonAsync<CustomerDashboard>("/api/dashboard"))!;
+        Assert.Equal(after.Length, dashboard.TotalTransactionCount);
     }
 
     private async Task<HttpClient> SignInAsync(string user)

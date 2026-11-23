@@ -60,7 +60,11 @@ public sealed class PostgreSqlDisputeFixture : IAsyncLifetime
             {
                 builder.UseEnvironment("Testing");
                 builder.ConfigureAppConfiguration((_, options) => options.AddInMemoryCollection(
-                    new Dictionary<string, string?> { ["ConnectionStrings:DisputeDesk"] = connection.ConnectionString }));
+                    new Dictionary<string, string?>
+                    {
+                        ["ConnectionStrings:DisputeDesk"] = connection.ConnectionString,
+                        ["DemoTransactions:Enabled"] = "true"
+                    }));
                 builder.ConfigureTestServices(services =>
                     services.Replace(ServiceDescriptor.Singleton<TimeProvider>(new FixedTimeProvider())));
             });
