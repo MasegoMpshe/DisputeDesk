@@ -11,8 +11,11 @@
             </span>
           }
           <time class="muted" [attr.datetime]="transaction.occurredAt">
-            {{ transaction.occurredAt | date: 'mediumDate' }}
+            {{ transaction.occurredAt | date: 'mediumDate' : 'UTC' }}
           </time>
+          @if (transaction.filingWindowExpired) {
+            <span class="filing-closed-label">Dispute window closed</span>
+          }
         </span>
         <span class="amount">{{ transaction.amount | currency: transaction.currency }}</span>
       </a>

@@ -6,6 +6,7 @@ namespace DisputeDesk.Api;
 
 internal sealed class ProvisionDemoAccounts(
     UserManager<IdentityUser> users,
+    RoleManager<IdentityRole> roles,
     DisputeDeskDbContext database,
     IConfiguration configuration)
 {
@@ -19,40 +20,53 @@ internal sealed class ProvisionDemoAccounts(
             throw new InvalidOperationException("Seed the demo customers before provisioning login accounts.");
         }
 
-        var missingAccounts = new List<(string Id, string Password)>();
+        await using var transaction = await database.Database.BeginTransactionAsync();
         foreach (var id in accountIds)
         {
-            if (await users.FindByIdAsync(id) is not null)
+            if (await users.FindByIdAsync(id) is null)
             {
-                continue;
-            }
+                var password = configuration[$"DemoAccounts:{id}:Password"];
+                if (string.IsNullOrWhiteSpace(password))
+                {
+                    throw new InvalidOperationException($"Configure a demo password for {id} before provisioning.");
+                }
 
-            var password = configuration[$"DemoAccounts:{id}:Password"];
-            if (string.IsNullOrWhiteSpace(password))
-            {
-                throw new InvalidOperationException($"Configure a demo password for {id} before provisioning.");
+                await CreateUserAsync(id, password);
             }
-
-            missingAccounts.Add((id, password));
         }
 
-        if (missingAccounts.Count == 0)
+        const string reviewerId = "demo-reviewer";
+        var reviewerPassword = configuration[$"DemoAccounts:{reviewerId}:Password"];
+        if (!string.IsNullOrWhiteSpace(reviewerPassword))
         {
-            return;
-        }
-
-        await using var transaction = await database.Database.BeginTransactionAsync();
-        foreach (var (id, password) in missingAccounts)
-        {
-            var user = new IdentityUser { Id = id, UserName = id, LockoutEnabled = true };
-            var result = await users.CreateAsync(user, password);
-            if (!result.Succeeded)
+            if (!await roles.RoleExistsAsync(DisputeAccess.Reviewer))
             {
-                throw new InvalidOperationException(
-                    $"Could not create demo account {id}: {string.Join(", ", result.Errors.Select(error => error.Code))}.");
+                EnsureSuccess(await roles.CreateAsync(new IdentityRole(DisputeAccess.Reviewer)), "create the reviewer role");
+            }
+
+            var reviewer = await users.FindByIdAsync(reviewerId) ?? await CreateUserAsync(reviewerId, reviewerPassword);
+            if (!await users.IsInRoleAsync(reviewer, DisputeAccess.Reviewer))
+            {
+                EnsureSuccess(await users.AddToRoleAsync(reviewer, DisputeAccess.Reviewer), "assign the reviewer role");
             }
         }
 
         await transaction.CommitAsync();
+    }
+
+    private async Task<IdentityUser> CreateUserAsync(string id, string password)
+    {
+        var user = new IdentityUser { Id = id, UserName = id, LockoutEnabled = true };
+        EnsureSuccess(await users.CreateAsync(user, password), $"create demo account {id}");
+        return user;
+    }
+
+    private static void EnsureSuccess(IdentityResult result, string action)
+    {
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                $"Could not {action}: {string.Join(", ", result.Errors.Select(error => error.Code))}.");
+        }
     }
 }

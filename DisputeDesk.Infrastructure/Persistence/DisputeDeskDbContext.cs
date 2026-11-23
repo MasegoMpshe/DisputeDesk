@@ -6,16 +6,34 @@ using Microsoft.EntityFrameworkCore;
 namespace DisputeDesk.Infrastructure;
 
 public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> options)
-    : IdentityUserContext<IdentityUser>(options)
+    : IdentityDbContext<IdentityUser>(options)
 {
     public DbSet<Customer> Customers => Set<Customer>();
     public DbSet<Transaction> Transactions => Set<Transaction>();
     public DbSet<Dispute> Disputes => Set<Dispute>();
     public DbSet<DisputeReason> DisputeReasons => Set<DisputeReason>();
+    public DbSet<DisputeStatusChange> DisputeStatusHistory => Set<DisputeStatusChange>();
+    public DbSet<DisputeNotification> DisputeNotifications => Set<DisputeNotification>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
+
+        modelBuilder.HasSequence<int>("dispute_reference_numbers").HasMax(99_999_999);
+
+        var requestLogs = modelBuilder.Entity<ApiRequestLog>();
+        requestLogs.ToTable("api_request_logs");
+        requestLogs.HasKey(log => log.Id);
+        requestLogs.Property(log => log.Id).HasColumnName("id");
+        requestLogs.Property(log => log.OccurredAt).HasColumnName("occurred_at");
+        requestLogs.Property(log => log.CorrelationId).HasColumnName("correlation_id").HasMaxLength(64);
+        requestLogs.Property(log => log.Method).HasColumnName("method").HasMaxLength(16);
+        requestLogs.Property(log => log.RoutePattern).HasColumnName("route_pattern");
+        requestLogs.Property(log => log.StatusCode).HasColumnName("status_code");
+        requestLogs.Property(log => log.DurationMs).HasColumnName("duration_ms");
+        requestLogs.Property(log => log.Level).HasColumnName("level").HasMaxLength(16);
+        requestLogs.HasIndex(log => log.OccurredAt);
+        requestLogs.HasIndex(log => log.CorrelationId);
 
         var customers = modelBuilder.Entity<Customer>();
         customers.ToTable("customers");
@@ -66,14 +84,41 @@ public sealed class DisputeDeskDbContext(DbContextOptions<DisputeDeskDbContext> 
         disputes.HasKey(dispute => dispute.Id);
         disputes.Property(dispute => dispute.Id).HasColumnName("id");
         disputes.Property(dispute => dispute.TransactionId).HasColumnName("transaction_id");
-        disputes.Property(dispute => dispute.ReferenceNumber).HasColumnName("reference_number");
+        disputes.Property(dispute => dispute.ReferenceNumber).HasColumnName("reference_number")
+            .HasSentinel(string.Empty)
+            .HasDefaultValueSql("'DD-' || lpad(nextval('dispute_reference_numbers')::text, 8, '0')");
         disputes.Property(dispute => dispute.Reason).HasColumnName("reason");
         disputes.Property(dispute => dispute.Details).HasColumnName("details");
-        disputes.Property(dispute => dispute.Status).HasColumnName("status");
+        disputes.Property(dispute => dispute.Status).HasColumnName("status").HasConversion<string>().IsConcurrencyToken();
         disputes.Property(dispute => dispute.SubmittedAt).HasColumnName("submitted_at");
         disputes.HasIndex(dispute => dispute.ReferenceNumber).IsUnique();
         disputes.HasOne<Transaction>().WithOne()
             .HasForeignKey<Dispute>(dispute => dispute.TransactionId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        var history = modelBuilder.Entity<DisputeStatusChange>();
+        history.ToTable("dispute_status_history");
+        history.HasKey(change => change.Id);
+        history.Property(change => change.Id).HasColumnName("id");
+        history.Property(change => change.DisputeId).HasColumnName("dispute_id");
+        history.Property(change => change.Status).HasColumnName("status").HasConversion<string>();
+        history.Property(change => change.ActorId).HasColumnName("actor_id");
+        history.Property(change => change.Actor).HasColumnName("actor").HasConversion<string>();
+        history.Property(change => change.ChangedAt).HasColumnName("changed_at");
+        history.Property(change => change.Note).HasColumnName("note").HasMaxLength(2000);
+        history.HasIndex(change => new { change.DisputeId, change.Status }).IsUnique();
+        history.HasOne<Dispute>().WithMany().HasForeignKey(change => change.DisputeId).OnDelete(DeleteBehavior.Restrict);
+
+        var notifications = modelBuilder.Entity<DisputeNotification>();
+        notifications.ToTable("dispute_notifications");
+        notifications.HasKey(notification => notification.StatusChangeId);
+        notifications.Property(notification => notification.StatusChangeId).HasColumnName("status_change_id");
+        notifications.Property(notification => notification.CustomerId).HasColumnName("customer_id");
+        notifications.Property(notification => notification.ReadAt).HasColumnName("read_at");
+        notifications.HasOne<DisputeStatusChange>().WithOne()
+            .HasForeignKey<DisputeNotification>(notification => notification.StatusChangeId)
+            .OnDelete(DeleteBehavior.Restrict);
+        notifications.HasOne<Customer>().WithMany().HasForeignKey(notification => notification.CustomerId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

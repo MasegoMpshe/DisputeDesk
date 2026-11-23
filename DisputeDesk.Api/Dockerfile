@@ -30,6 +30,12 @@ COPY --from=build /app/ ./
 ENTRYPOINT ["dotnet", "DisputeDesk.Api.dll"]
 
 FROM base AS final
+USER root
+RUN apt-get update && apt-get install -y --no-install-recommends curl && rm -rf /var/lib/apt/lists/*
+USER $APP_UID
+ENV DISPUTEDESK_HEALTH_URL=http://127.0.0.1:8080/health/ready
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD test "$(curl --insecure --silent --show-error --max-time 4 --output /dev/null --write-out '%{http_code}' "$DISPUTEDESK_HEALTH_URL")" = 200
 COPY --from=build /app/ ./
 COPY --from=frontend /web/dist/disputedesk-web/browser/ ./wwwroot/
 ENTRYPOINT ["dotnet", "DisputeDesk.Api.dll"]

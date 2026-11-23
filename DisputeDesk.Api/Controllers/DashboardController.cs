@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using DisputeDesk.Application.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -7,22 +6,21 @@ using Microsoft.Extensions.Options;
 namespace DisputeDesk.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Policy = DisputeAccess.Customer)]
 [ResponseCache(Location = ResponseCacheLocation.None, NoStore = true)]
 [Route("api/dashboard")]
 public sealed class DashboardController(
-    ICustomerDashboardReader dashboard, IOptions<DemoTransactionOptions> demoOptions) : ControllerBase
+    ICustomerDashboardReader dashboard, IOptions<DemoTransactionOptions> demoOptions, TimeProvider clock) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<CustomerDashboard>> Get(CancellationToken cancellationToken)
     {
-        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (string.IsNullOrEmpty(userId))
+        var summary = await dashboard.GetAsync(DisputeAccess.UserId(User), cancellationToken);
+        var now = clock.GetUtcNow();
+        return summary with
         {
-            return Forbid();
-        }
-
-        var summary = await dashboard.GetAsync(userId, cancellationToken);
-        return summary with { CanGenerateTransactions = demoOptions.Value.Enabled };
+            CanGenerateTransactions = demoOptions.Value.Enabled,
+            RecentTransactions = summary.RecentTransactions.Select(item => item.WithFilingWindowAt(now)).ToArray()
+        };
     }
 }

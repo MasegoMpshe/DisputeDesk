@@ -7,4 +7,5 @@ public abstract record DisputeSubmissionResult
     public sealed record Duplicate : DisputeSubmissionResult;
     public sealed record InvalidReason : DisputeSubmissionResult;
     public sealed record DetailsRequired : DisputeSubmissionResult;
+    public sealed record FilingWindowExpired : DisputeSubmissionResult;
 }

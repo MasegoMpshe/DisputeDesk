@@ -1,0 +1,17 @@
+<h1>Dispute review queue</h1>
+<section class="panel" aria-label="Open disputes">
+  @if (error()) {
+    <div class="state">
+      <p class="error" role="alert">We couldn’t load the review queue.</p>
+      <button type="button" (click)="load()">Try again</button>
+    </div>
+  } @else if (disputes(); as items) {
+    @if (items.length) {
+      <app-dispute-rows [items]="items" detailBase="/reviewer/disputes" />
+    } @else {
+      <p class="state" role="status">There are no open disputes to review.</p>
+    }
+  } @else {
+    <p class="state" role="status">Loading review queue…</p>
+  }
+</section>

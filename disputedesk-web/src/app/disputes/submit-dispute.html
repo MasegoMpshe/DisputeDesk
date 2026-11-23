@@ -1,4 +1,7 @@
-<a routerLink="/transactions">Back to transactions</a>
+<div class="customer-page-actions">
+  <a routerLink="/transactions">Back to transactions</a>
+  <app-notification-bell />
+</div>
 <section class="panel form-panel" aria-labelledby="dispute-title">
   <h1 id="dispute-title">Dispute a transaction</h1>
   @if (transaction(); as item) {
@@ -10,66 +13,78 @@
         {{ item.merchant }}{{ item.merchant && item.city ? ' · ' : '' }}{{ item.city }}
       </p>
     }
-    <form [formGroup]="form" (ngSubmit)="submit()">
-      <label for="reason">Reason</label>
-      <select
-        id="reason"
-        formControlName="reasonCode"
-        required
-        (change)="updateDetailsRequirement()"
-        [attr.aria-invalid]="
-          form.controls.reasonCode.touched && form.controls.reasonCode.invalid ? 'true' : null
-        "
-        [attr.aria-describedby]="
-          form.controls.reasonCode.touched && form.controls.reasonCode.invalid
-            ? 'reason-error'
-            : null
-        "
-      >
-        <option value="" disabled>Select a reason</option>
-        @for (reason of reasons(); track reason.code) {
-          <option [value]="reason.code">{{ reason.label }}</option>
-        }
-      </select>
-      @if (form.controls.reasonCode.touched && form.controls.reasonCode.invalid) {
-        <p class="error" id="reason-error">Select a dispute reason.</p>
-      }
-      <label for="details">
-        Details
-        @if (!detailsRequired()) {
-          <span class="muted">(optional)</span>
-        }
-      </label>
-      <textarea
-        id="details"
-        formControlName="details"
-        rows="5"
-        maxlength="2000"
-        [attr.aria-required]="detailsRequired()"
-        [attr.aria-invalid]="
-          form.controls.details.touched && form.controls.details.invalid ? 'true' : null
-        "
-        [attr.aria-describedby]="
-          form.controls.details.touched && form.controls.details.invalid ? 'details-error' : null
-        "
-      ></textarea>
-      @if (form.controls.details.touched && form.controls.details.invalid) {
-        <p class="error" id="details-error">Explain what happened in up to 2,000 characters.</p>
-      }
-      @if (submitError()) {
-        <p class="error" role="alert">{{ submitError() }}</p>
-      }
-      <div class="actions">
-        @if (duplicate()) {
-          <a routerLink="/disputes">View all disputes</a>
-        } @else {
-          <button type="submit" [disabled]="submitting()">
-            {{ submitting() ? 'Submitting…' : 'Submit dispute' }}
-          </button>
-        }
-        <a [routerLink]="['/transactions', item.id]">Cancel</a>
+    @if (item.filingWindowExpired) {
+      <div role="status">
+        <span class="filing-closed-label">Dispute window closed</span>
+        <p>
+          The 120-day filing period ended on
+          <time [attr.datetime]="item.disputeDeadline">
+            {{ item.disputeDeadline | date: 'medium' : 'UTC' }} UTC</time>.
+        </p>
       </div>
-    </form>
+      <a routerLink="/disputes">View your disputes</a>
+    } @else {
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        <label for="reason">Reason</label>
+        <select
+          id="reason"
+          formControlName="reasonCode"
+          required
+          (change)="updateDetailsRequirement()"
+          [attr.aria-invalid]="
+            form.controls.reasonCode.touched && form.controls.reasonCode.invalid ? 'true' : null
+          "
+          [attr.aria-describedby]="
+            form.controls.reasonCode.touched && form.controls.reasonCode.invalid
+              ? 'reason-error'
+              : null
+          "
+        >
+          <option value="" disabled>Select a reason</option>
+          @for (reason of reasons(); track reason.code) {
+            <option [value]="reason.code">{{ reason.label }}</option>
+          }
+        </select>
+        @if (form.controls.reasonCode.touched && form.controls.reasonCode.invalid) {
+          <p class="error" id="reason-error">Select a dispute reason.</p>
+        }
+        <label for="details">
+          Details
+          @if (!detailsRequired()) {
+            <span class="muted">(optional)</span>
+          }
+        </label>
+        <textarea
+          id="details"
+          formControlName="details"
+          rows="5"
+          maxlength="2000"
+          [attr.aria-required]="detailsRequired()"
+          [attr.aria-invalid]="
+            form.controls.details.touched && form.controls.details.invalid ? 'true' : null
+          "
+          [attr.aria-describedby]="
+            form.controls.details.touched && form.controls.details.invalid ? 'details-error' : null
+          "
+        ></textarea>
+        @if (form.controls.details.touched && form.controls.details.invalid) {
+          <p class="error" id="details-error">Explain what happened in up to 2,000 characters.</p>
+        }
+        @if (submitError()) {
+          <p class="error" role="alert">{{ submitError() }}</p>
+        }
+        <div class="actions">
+          @if (duplicate()) {
+            <a routerLink="/disputes">View all disputes</a>
+          } @else {
+            <button type="submit" [disabled]="submitting()">
+              {{ submitting() ? 'Submitting…' : 'Submit dispute' }}
+            </button>
+          }
+          <a [routerLink]="['/transactions', item.id]">Cancel</a>
+        </div>
+      </form>
+    }
   } @else if (loadError()) {
     <p class="error" role="alert">{{ loadError() }}</p>
   } @else {

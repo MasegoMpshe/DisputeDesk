@@ -1,0 +1,46 @@
+ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+li {
+  display: grid;
+  align-items: center;
+  grid-template-columns: minmax(0, 1fr) minmax(6rem, auto) minmax(6rem, auto);
+  gap: 0.65rem 1.15rem;
+  padding: 1rem 1.25rem;
+}
+
+li + li {
+  border-top: 1px solid var(--border);
+}
+
+.transaction,
+.amount {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.transaction a {
+  font-weight: 650;
+}
+
+.reference {
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 38rem) {
+  li {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .amount {
+    text-align: end;
+  }
+
+  .status-label {
+    grid-column: 1 / -1;
+  }
+}

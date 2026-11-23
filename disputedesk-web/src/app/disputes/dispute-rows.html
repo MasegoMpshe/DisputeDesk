@@ -1,0 +1,17 @@
+<ul>
+  @for (dispute of items(); track dispute.id) {
+    <li>
+      <div class="transaction">
+        <a [routerLink]="[detailBase(), dispute.id]">{{ dispute.transactionDescription }}</a>
+        <span class="muted reference">{{ dispute.referenceNumber }}</span>
+      </div>
+      <div class="amount">
+        <strong>{{ dispute.amount | currency: dispute.currency }}</strong>
+        <time class="muted" [attr.datetime]="dispute.submittedAt">{{
+          dispute.submittedAt | date: 'mediumDate'
+        }}</time>
+      </div>
+      <span class="status-label">{{ dispute.status }}</span>
+    </li>
+  }
+</ul>

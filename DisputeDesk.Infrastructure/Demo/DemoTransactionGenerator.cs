@@ -4,15 +4,15 @@ using Microsoft.EntityFrameworkCore;
 
 namespace DisputeDesk.Infrastructure;
 
-public sealed class DemoTransactionGenerator(DisputeDeskDbContext context) : IDemoTransactionGenerator
+public sealed class DemoTransactionGenerator(DisputeDeskDbContext context, TimeProvider clock) : IDemoTransactionGenerator
 {
-    private static readonly (string Description, string Merchant, string City)[] Purchases =
+    private static readonly (string Description, string Merchant, string City, int DaysAgo)[] Purchases =
     [
-        ("Grocery purchase", "Corner Basket", "Johannesburg"),
-        ("Coffee purchase", "Morning Cup", "Pretoria"),
-        ("Fuel purchase", "Highway Fuel", "Bloemfontein"),
-        ("Pharmacy purchase", "Neighbourhood Pharmacy", "Cape Town"),
-        ("Book purchase", "Paper Trail Books", "Durban")
+        ("Grocery purchase", "Corner Basket", "Johannesburg", 0),
+        ("Coffee purchase", "Morning Cup", "Pretoria", 7),
+        ("Fuel purchase", "Highway Fuel", "Bloemfontein", 35),
+        ("Pharmacy purchase", "Neighbourhood Pharmacy", "Cape Town", 125),
+        ("Book purchase", "Paper Trail Books", "Durban", 180)
     ];
 
     public async Task<int> GenerateAsync(string identityUserId, CancellationToken cancellationToken)
@@ -26,8 +26,8 @@ public sealed class DemoTransactionGenerator(DisputeDeskDbContext context) : IDe
             return 0;
         }
 
-        var now = DateTimeOffset.UtcNow;
-        var rows = Purchases.Select((purchase, index) => new Transaction
+        var now = clock.GetUtcNow();
+        var rows = Purchases.Select(purchase => new Transaction
         {
             Id = Guid.NewGuid(),
             CustomerId = customerId.Value,
@@ -36,7 +36,7 @@ public sealed class DemoTransactionGenerator(DisputeDeskDbContext context) : IDe
             City = purchase.City,
             Amount = Random.Shared.Next(2_000, 95_001) / 100m,
             Currency = "ZAR",
-            OccurredAt = now.AddMilliseconds(-index)
+            OccurredAt = now.AddDays(-purchase.DaysAgo)
         }).ToArray();
 
         context.Transactions.AddRange(rows);

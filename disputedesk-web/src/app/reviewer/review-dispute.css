@@ -1,0 +1,46 @@
+.review {
+  margin-top: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+}
+
+.review-actions {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+h2 {
+  margin: 0 0 0.75rem;
+  color: var(--accent);
+  font-size: 1.25rem;
+}
+
+label,
+select,
+textarea {
+  display: block;
+}
+
+label {
+  margin: 0.75rem 0 0.3rem;
+  font-weight: 600;
+}
+
+select,
+textarea {
+  width: min(100%, 36rem);
+  padding: 0.6rem;
+  border: 1px solid var(--control-border);
+  border-radius: 0.5rem;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+}
+
+textarea {
+  resize: vertical;
+}
+
+.review-actions p {
+  margin-block: 0.4rem 0.75rem;
+}
