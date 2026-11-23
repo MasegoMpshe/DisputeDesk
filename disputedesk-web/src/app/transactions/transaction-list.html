@@ -59,7 +59,7 @@
   } @else if (result(); as page) {
     @if (page.items.length) {
       <app-transaction-rows [transactions]="page.items" />
-      <nav class="pagination" aria-label="Transaction pages">
+      <nav class="list-pagination" aria-label="Transaction pages">
         <p role="status">
           {{ (page.page - 1) * page.pageSize + 1 }}–{{ (page.page - 1) * page.pageSize + page.items.length }}
           of {{ page.totalCount }} transactions

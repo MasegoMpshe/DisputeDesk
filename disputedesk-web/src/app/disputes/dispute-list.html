@@ -36,15 +36,29 @@
     </p>
   }
 </form>
-<section class="panel" aria-label="Your disputes">
+<section class="panel" aria-label="Your disputes" [attr.aria-busy]="loading()">
   @if (loadError()) {
     <div class="state">
       <p class="error" role="alert">We couldn’t load your disputes.</p>
       <button type="button" (click)="load()">Try again</button>
     </div>
-  } @else if (disputes(); as items) {
-    @if (items.length) {
-      <app-dispute-rows [items]="items" />
+  } @else if (result(); as page) {
+    @if (page.items.length) {
+      <app-dispute-rows [items]="page.items" />
+      <nav class="list-pagination" aria-label="Dispute pages">
+        <p role="status">
+          {{ (page.page - 1) * page.pageSize + 1 }}–{{ (page.page - 1) * page.pageSize + page.items.length }}
+          of {{ page.totalCount }} disputes
+        </p>
+        @if (pageCount() > 1) {
+          <div>
+            <button type="button" class="secondary" [attr.aria-disabled]="loading() || page.page === 1"
+              (click)="goTo(page.page - 1)">Previous</button>
+            <button type="button" class="secondary" [attr.aria-disabled]="loading() || page.page === pageCount()"
+              (click)="goTo(page.page + 1)">Next</button>
+          </div>
+        }
+      </nav>
     } @else {
       <p class="state" role="status">
         {{ filtered() ? 'No disputes match these filters.' : 'You have no disputes yet.' }}

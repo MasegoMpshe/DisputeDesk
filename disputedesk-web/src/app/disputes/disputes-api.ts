@@ -29,6 +29,13 @@ export interface Dispute {
   readonly currency: string;
 }
 
+export interface DisputePage {
+  readonly items: Dispute[];
+  readonly totalCount: number;
+  readonly page: number;
+  readonly pageSize: number;
+}
+
 export interface DisputeReasonOption {
   readonly code: string;
   readonly label: string;
@@ -53,15 +60,15 @@ export interface DisputeDetails {
 export class DisputesApi {
   private readonly http = inject(HttpClient);
 
-  list(filters: DisputeFilters) {
-    const params: Record<string, string> = {};
+  list(filters: DisputeFilters, page: number) {
+    const params: Record<string, string> = { page: String(page) };
     if (filters.status) params['status'] = filters.status;
     if (filters.from) params['from'] = new Date(filters.from + 'T00:00:00').toISOString();
     if (filters.to) {
       // The API's upper bound is inclusive, so include the full final local day.
       params['to'] = new Date(filters.to + 'T23:59:59').toISOString().replace('.000Z', '.9999999Z');
     }
-    return this.http.get<Dispute[]>('/api/disputes', { params });
+    return this.http.get<DisputePage>('/api/disputes/page', { params });
   }
 
   listReasons() {

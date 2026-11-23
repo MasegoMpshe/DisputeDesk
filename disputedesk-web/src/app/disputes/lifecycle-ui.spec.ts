@@ -131,24 +131,32 @@ describe('Dispute lifecycle UI', () => {
   it('sends a status filter and date boundaries and clears the filters', () => {
     const fixture = TestBed.createComponent(DisputeList);
     const http = TestBed.inject(HttpTestingController);
-    http.expectOne('/api/disputes').flush([dispute('Approved').summary]);
+    http.expectOne((request) => request.url === '/api/disputes/page' && request.params.get('page') === '1')
+      .flush({ items: [dispute('Approved').summary], totalCount: 11, page: 1, pageSize: 10 });
     fixture.detectChanges();
     http.expectOne('/api/dispute-notifications').flush([]);
     expect(root(fixture).textContent).toContain('325.00');
+    click(fixture, 'Next');
+    http.expectOne((request) => request.url === '/api/disputes/page' && request.params.get('page') === '2')
+      .flush({ items: [dispute('Approved').summary], totalCount: 11, page: 2, pageSize: 10 });
+    fixture.detectChanges();
+    expect(root(fixture).querySelector('[aria-label="Dispute pages"]')?.textContent).toContain('11–11');
 
     field(fixture, '[formControlName="status"]', 'Approved');
     field(fixture, '[formControlName="from"]', '2026-11-23');
     field(fixture, '[formControlName="to"]', '2026-11-23');
     submit(fixture);
-    const filtered = http.expectOne((request) => request.url === '/api/disputes');
+    const filtered = http.expectOne((request) => request.url === '/api/disputes/page');
+    expect(filtered.request.params.get('page')).toBe('1');
     expect(filtered.request.params.get('status')).toBe('Approved');
     expect(filtered.request.params.get('from')).toBe(new Date('2026-11-23T00:00:00').toISOString());
     expect(filtered.request.params.get('to')).toMatch(/\.9999999Z$/);
-    filtered.flush([]);
+    filtered.flush({ items: [], totalCount: 0, page: 1, pageSize: 10 });
     fixture.detectChanges();
     expect(root(fixture).textContent).toContain('No disputes match these filters.');
     click(fixture, 'Clear');
-    http.expectOne('/api/disputes').flush([dispute('Approved').summary]);
+    http.expectOne((request) => request.url === '/api/disputes/page' && request.params.get('page') === '1')
+      .flush({ items: [dispute('Approved').summary], totalCount: 11, page: 1, pageSize: 10 });
   });
 
   it('confirms withdrawal and refreshes the timeline with the closed status', () => {
