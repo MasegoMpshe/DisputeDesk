@@ -38,7 +38,7 @@ If Docker is already running in Linux container mode, skip to [Start the demo](#
 4. Open [https://localhost:8443](https://localhost:8443). Compose generates a self-signed development certificate, so your browser may ask you to trust it or continue to this local address. The API and Angular UI share this HTTPS origin.
 5. Sign in as `demo-naledi` with `DEMO_NALEDI_PASSWORD` from your `.env` file, or as `demo-thabo` with `DEMO_THABO_PASSWORD`.
 
-The optional `demo-reviewer` account is provisioned when `DEMO_REVIEWER_PASSWORD` is set in `.env`. If you are reusing an older `.env`, copy that entry from `.env.example`. Sign in as `demo-reviewer` with the password value without the surrounding quotes.
+The local Docker demo provisions `demo-reviewer`. If your `.env` lacks `DEMO_REVIEWER_PASSWORD`, Compose uses the example password `Local-Reviewer1!`. Set a custom value to use a different password, or set `DEMO_REVIEWER_PASSWORD=` to skip reviewer provisioning. When signing in, enter the password without the surrounding quotes.
 
 If reviewer sign-in fails after updating an existing Docker checkout, rerun the one-time setup from the repository root.
 

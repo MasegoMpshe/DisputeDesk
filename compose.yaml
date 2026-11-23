@@ -30,7 +30,8 @@ services:
       Database__ProvisionDemoAccounts: "true"
       DEMO_NALEDI_PASSWORD: "${DEMO_NALEDI_PASSWORD:?Set DEMO_NALEDI_PASSWORD in .env}"
       DEMO_THABO_PASSWORD: "${DEMO_THABO_PASSWORD:?Set DEMO_THABO_PASSWORD in .env}"
-      DEMO_REVIEWER_PASSWORD: "${DEMO_REVIEWER_PASSWORD:-}"
+      # Local demo default for older .env files. An explicit empty value skips provisioning.
+      DEMO_REVIEWER_PASSWORD: "${DEMO_REVIEWER_PASSWORD-Local-Reviewer1!}"
       HTTPS_CERT_PASSWORD: "${HTTPS_CERT_PASSWORD:?Set HTTPS_CERT_PASSWORD in .env}"
     volumes:
       - https-certificate:/https
