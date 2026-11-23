@@ -67,7 +67,8 @@ jobs:
           persist-credentials: false
       - name: Build and start DisputeDesk
         run: |
-          cp .env.example .env
+          # Exercise an older .env that predates the reviewer credential.
+          sed '/^DEMO_REVIEWER_PASSWORD=/d' .env.example > .env
           docker compose up --build -d
       - name: Verify reviewer lifecycle and customer notifications
         shell: bash
@@ -75,6 +76,7 @@ jobs:
           set -a
           source .env
           set +a
+          export DEMO_REVIEWER_PASSWORD='Local-Reviewer1!'
           bash .github/scripts/docker-smoke.sh
       - name: Show logs on failure
         if: failure()
