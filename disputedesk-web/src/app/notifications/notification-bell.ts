@@ -1,5 +1,4 @@
 import { DatePipe } from '@angular/common';
-import { HttpErrorResponse } from '@angular/common/http';
 import {
   Component,
   DestroyRef,
@@ -48,9 +47,8 @@ export class NotificationBell {
           this.loading.set(true);
           this.loadFailed.set(false);
           return this.api.list().pipe(
-            catchError((error: HttpErrorResponse) => {
-              if (error.status === 401) this.signIn();
-              else this.loadFailed.set(true);
+            catchError(() => {
+              this.loadFailed.set(true);
               return EMPTY;
             }),
             finalize(() => this.loading.set(false)),
@@ -99,9 +97,8 @@ export class NotificationBell {
         takeUntilDestroyed(this.destroyRef),
       )
       .subscribe({
-        error: (error: HttpErrorResponse) => {
-          if (error.status === 401) this.signIn();
-          else this.openFailed.set(true);
+        error: () => {
+          this.openFailed.set(true);
         },
       });
   }
@@ -125,9 +122,5 @@ export class NotificationBell {
     void this.router.navigate(['/disputes', item.disputeId], {
       queryParams: { notification: item.id },
     });
-  }
-
-  private signIn() {
-    void this.router.navigate(['/login'], { replaceUrl: true });
   }
 }

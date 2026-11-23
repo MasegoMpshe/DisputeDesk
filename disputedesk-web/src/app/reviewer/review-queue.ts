@@ -30,9 +30,7 @@ export class ReviewQueue implements OnInit {
       .subscribe({
         next: (items) => this.disputes.set(items),
         error: (error: HttpErrorResponse) => {
-          if (error.status === 401) void this.router.navigate(['/login'], { replaceUrl: true });
-          else if (error.status === 403)
-            void this.router.navigate(['/dashboard'], { replaceUrl: true });
+          if (error.status === 403) void this.router.navigate(['/dashboard'], { replaceUrl: true });
           else this.error.set(true);
         },
       });

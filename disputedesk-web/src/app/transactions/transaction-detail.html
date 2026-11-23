@@ -20,10 +20,23 @@
       <dd>
         <time [attr.datetime]="item.occurredAt">{{ item.occurredAt | date: 'medium' }}</time>
       </dd>
+      <dt>Dispute deadline</dt>
+      <dd>
+        <time [attr.datetime]="item.disputeDeadline">
+          {{ item.disputeDeadline | date: 'medium' : 'UTC' }} UTC
+        </time>
+      </dd>
     </dl>
-    <a class="button-link dispute-action" [routerLink]="['/transactions', item.id, 'dispute']"
-      >Dispute this transaction</a
-    >
+    @if (item.filingWindowExpired) {
+      <div class="dispute-action">
+        <span class="filing-closed-label">Dispute window closed</span>
+        <p>The 120-day filing period has ended. <a routerLink="/disputes">View your disputes</a>.</p>
+      </div>
+    } @else {
+      <a class="button-link dispute-action" [routerLink]="['/transactions', item.id, 'dispute']"
+        >Dispute this transaction</a
+      >
+    }
   } @else {
     <h1 id="transaction-title">Transaction details</h1>
     @if (error()) {

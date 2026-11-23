@@ -1,4 +1,3 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router } from '@angular/router';
@@ -64,13 +63,9 @@ export class SignOut {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: () => this.openLogin(),
-        error: (error: HttpErrorResponse) => {
-          if (error.status === 401) {
-            this.openLogin();
-          } else {
-            this.pending.set(false);
-            this.failed.set(true);
-          }
+        error: () => {
+          this.pending.set(false);
+          this.failed.set(true);
         },
       });
   }

@@ -1,8 +1,7 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { EMPTY, Subject, catchError, startWith, switchMap } from 'rxjs';
 import { NotificationBell } from '../notifications/notification-bell';
 import { DisputeRows } from './dispute-rows';
@@ -17,7 +16,6 @@ const noFilters: DisputeFilters = { status: '', from: '', to: '' };
 })
 export class DisputeList {
   private readonly api = inject(DisputesApi);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly requests = new Subject<DisputeFilters>();
   private appliedFilters = noFilters;
@@ -37,12 +35,8 @@ export class DisputeList {
           this.loadError.set(false);
           this.disputes.set(null);
           return this.api.list(filters).pipe(
-            catchError((error: HttpErrorResponse) => {
-              if (error.status === 401) {
-                void this.router.navigate(['/login'], { replaceUrl: true });
-              } else {
-                this.loadError.set(true);
-              }
+            catchError(() => {
+              this.loadError.set(true);
               return EMPTY;
             }),
           );

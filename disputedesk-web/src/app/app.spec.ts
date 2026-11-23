@@ -30,14 +30,16 @@ describe('App', () => {
 
     auth.session().subscribe();
     const http = TestBed.inject(HttpTestingController);
-    http.expectOne('/api/auth/session').flush({ role: 'Customer' });
+    http.expectOne('/api/auth/session').flush({ role: 'Customer', displayName: 'Naledi Mokoena' });
     fixture.detectChanges();
     expect(root.querySelector('header app-sign-out button')?.textContent?.trim()).toBe('Sign out');
     expect(root.querySelector('header app-notification-bell')).toBeNull();
+    expect(root.querySelector('.signed-in-name')?.textContent).toContain('Naledi Mokoena');
 
     auth.clearSession();
     fixture.detectChanges();
     expect(root.querySelector('header app-sign-out')).toBeNull();
+    expect(root.querySelector('.signed-in-name')).toBeNull();
     http.verify();
   });
 });

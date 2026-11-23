@@ -1,7 +1,6 @@
-import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink } from '@angular/router';
 import { NotificationBell } from '../notifications/notification-bell';
 import { DisputeStatusFilter, disputeStatuses } from '../disputes/disputes-api';
 import { TransactionsApi } from '../transactions/transactions-api';
@@ -16,7 +15,6 @@ import { DashboardApi, DashboardSummary } from './dashboard-api';
 export class Dashboard implements OnInit {
   private readonly api = inject(DashboardApi);
   private readonly transactions = inject(TransactionsApi);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   protected readonly statuses = (Object.keys(disputeStatuses) as DisputeStatusFilter[]).map(
@@ -43,13 +41,9 @@ export class Dashboard implements OnInit {
           this.generatedCount.set(count);
           this.load();
         },
-        error: (error: HttpErrorResponse) => {
+        error: () => {
           this.generating.set(false);
-          if (error.status === 401) {
-            void this.router.navigate(['/login'], { replaceUrl: true });
-          } else {
-            this.generationError.set(true);
-          }
+          this.generationError.set(true);
         },
       });
   }
@@ -65,12 +59,8 @@ export class Dashboard implements OnInit {
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (summary) => this.summary.set(summary),
-        error: (error: HttpErrorResponse) => {
-          if (error.status === 401) {
-            void this.router.navigate(['/login'], { replaceUrl: true });
-          } else {
-            this.loadError.set(true);
-          }
+        error: () => {
+          this.loadError.set(true);
         },
       });
   }

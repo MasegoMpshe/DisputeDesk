@@ -114,12 +114,31 @@ The PostgreSQL integration tests require `DISPUTEDESK_TEST_POSTGRES` to contain 
 
 ### Review the workflow
 
-1. Sign in as `demo-naledi`. On a fresh database, the dashboard shows two transactions and zero disputes.
+1. Sign in as `demo-naledi`. On a fresh database, the dashboard shows three transactions, including an expired Bookshop purchase, and zero disputes.
 2. Open a transaction, choose **Dispute this transaction**, pick a reason, and submit. The first timeline entry should be **Submitted**. Return to **View all disputes** and sign out.
 3. Sign in as `demo-reviewer`. Open the case from the review queue, choose **Start review**, and record an approval or rejection with a decision note. Return to the queue and check that the closed dispute is gone.
 4. Sign out and sign back in as `demo-naledi`. The bell shows two unread updates, one for **Under review** and one for the decision. Open either update to mark it as read and see the dispute timeline. Refresh and check that the remaining unread count is one.
 5. Open **View all disputes** and filter by the decision status and submission date. The matching row shows the transaction amount. Clear the filters to return to the whole list.
 6. Submit a different transaction as a second dispute and withdraw it while it is **Submitted**. Confirm that the timeline records **Withdrawn**. Sign in as `demo-thabo` and verify that Naledi's disputes and notifications are absent.
+
+### Browse transactions
+
+The header shows the signed-in customer name, or the reviewer’s username. The transaction list supports search by description, merchant, or city, inclusive UTC dates, and an open or closed dispute window. Sort by date or amount and use **Previous** and **Next** to move through the results, ten at a time.
+
+When demo generation is enabled, each batch includes three recent purchases and two purchases beyond the 120-day dispute window.
+
+### Verify an expired transaction
+
+1. Sign in as `demo-naledi`, open **View all transactions**, search for **Bookshop**, and choose **Apply**. The purchase is marked **Dispute window closed**.
+2. Open it to see the filing deadline in UTC and the link to dispute history. Open a recent transaction to compare the available filing action.
+3. If you already have a demo database and run without Docker, add the sample by rerunning the seed step from the repository root.
+
+   ```powershell
+   $env:ASPNETCORE_ENVIRONMENT = 'Development'
+   dotnet run --project .\DisputeDesk.Api --no-launch-profile -- --Database:Migrate=true --Database:SeedDemoData=true
+   ```
+
+   The demo seed keeps existing transactions and disputes. The .NET tests cover the exact deadline, rejection just after it, and reviewer actions on existing disputes after their transaction deadline.
 
 ### Verify lifecycle endpoints
 
@@ -128,6 +147,12 @@ In Development, use Swagger with a customer or reviewer session. Call `GET /api/
 - Customers can call `POST /api/disputes/{id}/withdraw` with `{}` while their dispute is Submitted. New disputes can be filed up to and including 120 days after the recorded transaction time.
 - Reviewers can open `GET /api/reviewer/disputes`, start review with `POST /api/reviewer/disputes/{id}/review` and `{}`, then submit a decision to `POST /api/reviewer/disputes/{id}/decision` with `{"status":"Approved","note":"Review outcome"}` or a Rejected status.
 - Customers can check their timeline at `GET /api/disputes/{id}` and notifications at `GET /api/dispute-notifications`. Mark an update as read with `PUT /api/dispute-notifications/{id}/read`.
+
+### Health and API errors
+
+- `GET /health/live` returns HTTP 200 when the API can respond.
+- `GET /health/ready` returns HTTP 200 when PostgreSQL is reachable and its migrations are current, or HTTP 503 when the API cannot serve database-backed requests. The Docker image uses this endpoint for its health check.
+- API errors use Problem Details JSON for standard HTTP statuses. On an expired session, the portal takes the user back to sign in.
 
 ## Architecture
 

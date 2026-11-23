@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { EMPTY, Subject, catchError, combineLatest, finalize, startWith, switchMap } from 'rxjs';
 import { NotificationsApi } from '../notifications/notifications-api';
 import { DisputeRecord } from './dispute-record';
@@ -19,7 +19,6 @@ export class DisputeReceipt {
   private readonly api = inject(DisputesApi);
   private readonly notifications = inject(NotificationsApi);
   private readonly route = inject(ActivatedRoute);
-  private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
   private readonly refreshes = new Subject<void>();
 
@@ -83,9 +82,7 @@ export class DisputeReceipt {
           this.retry();
         },
         error: (error: HttpErrorResponse) => {
-          if (error.status === 401) {
-            this.signIn();
-          } else if (this.route.snapshot.paramMap.get('id') === id) {
+          if (this.route.snapshot.paramMap.get('id') === id) {
             if (error.status === 409) {
               this.confirming.set(false);
               this.actionError.set(
@@ -104,19 +101,12 @@ export class DisputeReceipt {
     this.error.set('');
     return this.api.get(id).pipe(
       catchError((error: HttpErrorResponse) => {
-        if (error.status === 401) this.signIn();
-        else {
-          this.dispute.set(null);
-          this.error.set(
-            error.status === 404 ? 'Dispute not found.' : 'We couldn’t load this dispute.',
-          );
-        }
+        this.dispute.set(null);
+        this.error.set(
+          error.status === 404 ? 'Dispute not found.' : 'We couldn’t load this dispute.',
+        );
         return EMPTY;
       }),
     );
-  }
-
-  private signIn() {
-    void this.router.navigate(['/login'], { replaceUrl: true });
   }
 }

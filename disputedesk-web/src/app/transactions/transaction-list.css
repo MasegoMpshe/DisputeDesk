@@ -7,6 +7,57 @@
   margin-block: 0.75rem 1.25rem;
 }
 
+.filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13rem), 1fr));
+  align-items: end;
+  gap: 0.75rem 1rem;
+  padding: 1rem 1.25rem;
+  margin-bottom: 1.25rem;
+}
+
+.filters label {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.filters input,
+.filters select {
+  width: 100%;
+  min-width: 0;
+}
+
+.filters .error {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.filter-actions,
+.pagination,
+.pagination > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.pagination {
+  justify-content: space-between;
+  padding: 0.75rem 1.25rem;
+  border-top: 1px solid var(--border);
+}
+
+.pagination button[aria-disabled='true'] {
+  cursor: default;
+  color: var(--muted);
+  background: var(--surface);
+}
+
+.pagination p {
+  margin: 0;
+}
+
 .state {
   margin: 0;
   padding: 1.5rem;

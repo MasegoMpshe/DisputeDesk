@@ -9,5 +9,7 @@ import { SignOut } from './auth/sign-out';
   templateUrl: './app.html',
 })
 export class App {
-  protected readonly role = inject(AuthApi).role;
+  private readonly auth = inject(AuthApi);
+  protected readonly role = this.auth.role;
+  protected readonly displayName = this.auth.displayName;
 }

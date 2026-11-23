@@ -2,7 +2,7 @@ import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { EMPTY, catchError, switchMap, tap } from 'rxjs';
 import { Transaction, TransactionsApi } from './transactions-api';
 
@@ -15,7 +15,6 @@ import { NotificationBell } from '../notifications/notification-bell';
 })
 export class TransactionDetail {
   private readonly api = inject(TransactionsApi);
-  private readonly router = inject(Router);
   protected readonly transaction = signal<Transaction | null>(null);
   protected readonly error = signal('');
 
@@ -32,15 +31,11 @@ export class TransactionDetail {
         switchMap((params) =>
           this.api.get(params.get('id') ?? '').pipe(
             catchError((error: HttpErrorResponse) => {
-              if (error.status === 401) {
-                void this.router.navigate(['/login'], { replaceUrl: true });
-              } else {
-                this.error.set(
-                  error.status === 404
-                    ? 'Transaction not found.'
-                    : 'We couldn’t load this transaction.',
-                );
-              }
+              this.error.set(
+                error.status === 404
+                  ? 'Transaction not found.'
+                  : 'We couldn’t load this transaction.',
+              );
               return EMPTY;
             }),
           ),

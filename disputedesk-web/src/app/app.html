@@ -12,6 +12,9 @@
         <app-sign-out />
       }
     </div>
+    @if (displayName(); as name) {
+      <p class="signed-in-name">Signed in as <strong>{{ name }}</strong></p>
+    }
   </div>
 </header>
 <main class="app-main">

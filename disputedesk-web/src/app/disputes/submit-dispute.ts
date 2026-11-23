@@ -1,17 +1,17 @@
-import { CurrencyPipe } from '@angular/common';
+import { CurrencyPipe, DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Transaction, TransactionsApi } from '../transactions/transactions-api';
-import { forkJoin } from 'rxjs';
+import { map, of, switchMap } from 'rxjs';
 import { DisputeReasonOption, DisputesApi } from './disputes-api';
 
 import { NotificationBell } from '../notifications/notification-bell';
 
 @Component({
-  imports: [NotificationBell, CurrencyPipe, ReactiveFormsModule, RouterLink],
+  imports: [NotificationBell, CurrencyPipe, DatePipe, ReactiveFormsModule, RouterLink],
   templateUrl: './submit-dispute.html',
   styleUrl: './submit-dispute.css',
 })
@@ -36,11 +36,19 @@ export class SubmitDispute implements OnInit {
 
   ngOnInit() {
     const id = this.route.snapshot.paramMap.get('id') ?? '';
-    forkJoin({ item: this.transactions.get(id), reasons: this.disputes.listReasons() })
-      .pipe(takeUntilDestroyed(this.destroyRef))
+    this.transactions
+      .get(id)
+      .pipe(
+        switchMap((item) =>
+          item.filingWindowExpired
+            ? of({ item, reasons: [] })
+            : this.disputes.listReasons().pipe(map((reasons) => ({ item, reasons }))),
+        ),
+        takeUntilDestroyed(this.destroyRef),
+      )
       .subscribe({
         next: ({ item, reasons }) => {
-          if (!reasons.length) {
+          if (!item.filingWindowExpired && !reasons.length) {
             this.loadError.set('No dispute reasons are available.');
             return;
           }
@@ -48,13 +56,9 @@ export class SubmitDispute implements OnInit {
           this.transaction.set(item);
         },
         error: (error: HttpErrorResponse) => {
-          if (error.status === 401) this.openLogin();
-          else
-            this.loadError.set(
-              error.status === 404
-                ? 'Transaction not found.'
-                : 'We couldn’t load this transaction.',
-            );
+          this.loadError.set(
+            error.status === 404 ? 'Transaction not found.' : 'We couldn’t load this transaction.',
+          );
         },
       });
   }
@@ -76,7 +80,7 @@ export class SubmitDispute implements OnInit {
 
   protected submit() {
     const item = this.transaction();
-    if (!item || this.submitting() || this.duplicate()) return;
+    if (!item || item.filingWindowExpired || this.submitting() || this.duplicate()) return;
     if (this.form.invalid) {
       this.form.markAllAsTouched();
       return;
@@ -94,9 +98,6 @@ export class SubmitDispute implements OnInit {
         error: (error: HttpErrorResponse) => {
           this.submitting.set(false);
           switch (error.status) {
-            case 401:
-              this.openLogin();
-              break;
             case 404:
               this.transaction.set(null);
               this.loadError.set('Transaction not found.');
@@ -106,6 +107,10 @@ export class SubmitDispute implements OnInit {
               this.submitError.set('You already submitted a dispute for this transaction.');
               break;
             case 400: {
+              if (error.error?.code === 'filingWindowExpired') {
+                this.transaction.set({ ...item, filingWindowExpired: true });
+                break;
+              }
               const errors = error.error?.errors;
               this.submitError.set(
                 errors?.TransactionId?.[0] ?? 'Check the reason and details and try again.',
@@ -117,9 +122,5 @@ export class SubmitDispute implements OnInit {
           }
         },
       });
-  }
-
-  private openLogin() {
-    void this.router.navigate(['/login'], { replaceUrl: true });
   }
 }

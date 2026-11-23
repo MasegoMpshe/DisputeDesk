@@ -121,8 +121,8 @@ export class ReviewDispute {
   }
 
   private redirect(error: HttpErrorResponse) {
-    if (error.status === 401 || error.status === 403) {
-      void this.router.navigate([error.status === 401 ? '/login' : '/dashboard'], {
+    if (error.status === 403) {
+      void this.router.navigate(['/dashboard'], {
         replaceUrl: true,
       });
       return true;

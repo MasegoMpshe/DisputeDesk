@@ -5,6 +5,8 @@ import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angul
 import { of } from 'rxjs';
 import { NotificationBell } from '../notifications/notification-bell';
 import { ReviewDispute } from '../reviewer/review-dispute';
+import { TransactionDetail } from '../transactions/transaction-detail';
+import { TransactionRows } from '../transactions/transaction-rows';
 import { DisputeList } from './dispute-list';
 import { DisputeReceipt } from './dispute-receipt';
 import { DisputeDetails, DisputeStatus } from './disputes-api';
@@ -14,6 +16,17 @@ const id = 'dispute-1';
 const transactionId = 'transaction-1';
 const date = '2026-11-23T12:00:00Z';
 const params = convertToParamMap({ id });
+const transaction = {
+  id: transactionId,
+  description: 'Grocery purchase',
+  amount: 325,
+  currency: 'ZAR',
+  occurredAt: date,
+  disputeDeadline: '2027-03-23T12:00:00Z',
+  filingWindowExpired: false,
+  merchant: null,
+  city: null,
+};
 
 function dispute(status: DisputeStatus): DisputeDetails {
   return {
@@ -181,20 +194,73 @@ describe('Dispute lifecycle UI', () => {
     expect(root(fixture).querySelector('#decision-note')).toBeNull();
   });
 
+  it('labels expired transaction rows and keeps their detail links available', () => {
+    const fixture = TestBed.createComponent(TransactionRows);
+    fixture.componentRef.setInput('transactions', [
+      transaction,
+      { ...transaction, id: 'expired', filingWindowExpired: true },
+    ]);
+    fixture.detectChanges();
+
+    const rows = root(fixture).querySelectorAll('li');
+    expect(rows[0].textContent).not.toContain('Dispute window closed');
+    expect(rows[1].textContent).toContain('Dispute window closed');
+    expect(rows[1].querySelector('a')?.getAttribute('href')).toBe('/transactions/expired');
+  });
+
+  it.each([false, true])('shows the deadline and honors API expiration (%s)', (expired) => {
+    const fixture = TestBed.createComponent(TransactionDetail);
+    const http = TestBed.inject(HttpTestingController);
+    http.expectOne('/api/transactions/' + id).flush({ ...transaction, filingWindowExpired: expired });
+    fixture.detectChanges();
+    http.expectOne('/api/dispute-notifications').flush([]);
+
+    expect(root(fixture).textContent).toContain('Dispute deadline');
+    expect(root(fixture).querySelector('time[datetime="' + transaction.disputeDeadline + '"]')?.textContent)
+      .toContain('UTC');
+    expect(root(fixture).querySelector('a[href$="/dispute"]') !== null).toBe(!expired);
+    expect(root(fixture).querySelector('a[href="/disputes"]') !== null).toBe(expired);
+  });
+
+  it('shows the closed window for a direct link to an expired filing form', () => {
+    const fixture = TestBed.createComponent(SubmitDispute);
+    const http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    http.expectOne('/api/dispute-notifications').flush([]);
+    http.expectOne('/api/transactions/' + id).flush({ ...transaction, filingWindowExpired: true });
+    fixture.detectChanges();
+
+    expect(root(fixture).textContent).toContain('Dispute window closed');
+    expect(root(fixture).querySelector('form')).toBeNull();
+    http.expectNone('/api/disputes/reasons');
+  });
+
+  it('closes the form if the API rejects a submission after the deadline', () => {
+    const fixture = TestBed.createComponent(SubmitDispute);
+    const http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    http.expectOne('/api/dispute-notifications').flush([]);
+    http.expectOne('/api/transactions/' + id).flush(transaction);
+    http.expectOne('/api/disputes/reasons')
+      .flush([{ code: 'DUPLICATE', label: 'Duplicate', requiresDetails: false }]);
+    fixture.detectChanges();
+    field(fixture, '#reason', 'DUPLICATE');
+    submit(fixture);
+    http.expectOne('/api/disputes').flush(
+      { code: 'filingWindowExpired' }, { status: 400, statusText: 'Bad Request' },
+    );
+    fixture.detectChanges();
+
+    expect(root(fixture).textContent).toContain('Dispute window closed');
+    expect(root(fixture).querySelector('form')).toBeNull();
+  });
+
   it('requires details for Other and shows the duplicate submission error', () => {
     const fixture = TestBed.createComponent(SubmitDispute);
     const http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
     http.expectOne('/api/dispute-notifications').flush([]);
-    http.expectOne('/api/transactions/' + id).flush({
-      id: transactionId,
-      description: 'Grocery purchase',
-      amount: 325,
-      currency: 'ZAR',
-      occurredAt: date,
-      merchant: null,
-      city: null,
-    });
+    http.expectOne('/api/transactions/' + id).flush(transaction);
     http
       .expectOne('/api/disputes/reasons')
       .flush([{ code: 'OTHER', label: 'Other', requiresDetails: true }]);
