@@ -12,7 +12,21 @@ import { AuthApi } from './auth-api';
       display: block;
     }
     button {
+      padding: 0.35rem 0.45rem;
+      background: transparent;
+      color: white;
+      font-size: var(--header-label-size);
+      font-weight: 600;
+      line-height: 1.15;
       white-space: nowrap;
+    }
+    button:hover:not(:disabled) {
+      background: #ffffff1a;
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+    }
+    button:focus-visible {
+      outline-color: white;
     }
     .sign-out-error {
       position: absolute;
@@ -24,7 +38,7 @@ import { AuthApi } from './auth-api';
     }
   `,
   template: `
-    <button type="button" class="secondary" [disabled]="pending()" (click)="logout()">
+    <button type="button" [disabled]="pending()" (click)="logout()">
       {{ pending() ? 'Signing out…' : 'Sign out' }}
     </button>
     @if (failed()) {
